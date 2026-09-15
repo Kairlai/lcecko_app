@@ -114,9 +114,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
             vybrany_program = st.selectbox("Výběr programu *", [
                 "Krabičková strava – redukční program pro ženy (5–5 000 kJ)",
                 "Krabičková strava – redukční program pro muže (7–7 500 kJ)",
-                "Low Carb",
-                "Bezlepkový program",
-                "Vegetariánský program"
+                "Low Carb"
             ])
             delka_trvani = st.select_slider("Délka programu:", options=["1 týden (5 dní)", "2 týdny (10 dní)", "1 měsíc (20 dní)"])
             ceník = {"1 týden (5 dní)": 1850, "2 týdny (10 dní)": 3500, "1 měsíc (20 dní)": 6800}
