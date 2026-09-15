@@ -18,7 +18,7 @@ ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "heslo1234")
 
 st.set_page_config(page_title="L-Céčko | Objednávkový systém", layout="wide", page_icon="🥗")
 
-# Vizuální styl L-Céčka + Skrytí horní lišty Streamlitu
+# Vizuální styl L-Céčka (Skrytí lišty a úprava formulářových boxů)
 st.markdown("""
     <style>
     /* Skrytí horní lišty s tlačítky (Share, Edit atd.) a patičky Streamlitu */
@@ -26,19 +26,31 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
-    .stApp {
-        background-color: #f7f9fb;
+    /* Hlavní nadpisy ve vaší zelené barvě */
+    h1, h2, h3, .main-header {
+        color: #4A7833 !important;
     }
-    .main-header {
-        text-align: center;
-        color: #2c3e50;
-        margin-bottom: 20px;
-    }
+
+    /* Bílé boxy pro samotný formulář, aby text vynikl na béžovém pozadí */
     div[data-testid="stColumn"] {
         background: #ffffff;
         padding: 20px;
         border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-top: 5px solid #4A7833;
+    }
+    
+    /* Zelené tlačítko pro odeslání */
+    div.stButton > button:first-child {
+        background-color: #4A7833;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: bold;
+    }
+    div.stButton > button:first-child:hover {
+        background-color: #385a26;
+        color: white;
     }
     </style>
 """, unsafe_allow_html=True)
