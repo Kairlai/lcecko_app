@@ -1,3 +1,5 @@
+from io import BytesIO
+import qrcode
 import base64
 from datetime import datetime, timedelta
 import io
@@ -177,22 +179,22 @@ if rezim == "🛒 Objednávka pro zákazníka":
                 if uloz_objednavky(df_aktualni, current_sha):
                     st.success("🎉 Objednávka byla úspěšně přijata!")
                     
-                    # Generování české QR platby (Paylibo API)
-                    msg_encoded = urllib.parse.quote(f"L-Cecko ID {nove_id}")
-                    qr_url = f"https://api.paylibo.com/api/libre/qrcode/generator/settings?accountNumber={BANK_ACCOUNT}&bankCode={BANK_CODE}&amount={cena_za_jednotku:.2f}&currency=CZK&vs={nove_id}&message={msg_encoded}"
-                    
-                    st.markdown("---")
-                    st.markdown("### 💳 Podklady pro platbu převodem")
-                    col_qr, col_info = st.columns([1, 1.5])
-                    with col_qr:
-                        st.image(qr_url, caption="Naskenujte v banking aplikaci", width=200)
-                    with col_info:
-                        st.write(f"**Číslo účtu:** {BANK_ACCOUNT}/{BANK_CODE}")
-                        st.write(f"**Částka:** {cena_za_jednotku} Kč")
-                        st.write(f"**Variabilní symbol:** {nove_id}")
-                        st.write(f"**Zpráva:** L-Cecko ID {nove_id}")
-                else:
-                    st.error("❌ Chyba při ukládání objednávky. Zkuste to prosím znovu.")
+                  # Generování standardní české QR platby (SPD format)
+spd_str = f"SPD*1.0*ACC:{BANK_ACCOUNT}/{BANK_CODE}*AM:{cena_za_jednotku:.2f}*CC:CZK*X-VS:{nove_id}*MSG:L-Cecko ID {nove_id}"
+qr_img = qrcode.make(spd_str)
+buf = BytesIO()
+qr_img.save(buf, format="PNG")
+
+st.markdown("---")
+st.markdown("### 💳 Podklady pro platbu převodem")
+col_qr, col_info = st.columns([1, 1.5])
+with col_qr:
+    st.image(buf.getvalue(), caption="Naskenujte v banking aplikaci", width=200)
+with col_info:
+    st.write(f"**Číslo účtu:** {BANK_ACCOUNT}/{BANK_CODE}")
+    st.write(f"**Částka:** {cena_za_jednotku} Kč")
+    st.write(f"**Variabilní symbol:** {nove_id}")
+    st.write(f"**Zpráva:** L-Cecko ID {nove_id}")
 
 # ---------------------------------------------------------
 # 2. SPRÁVA PRO MAJITELKU A KUCHYŇ
