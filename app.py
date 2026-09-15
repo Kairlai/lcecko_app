@@ -1,21 +1,20 @@
-from io import BytesIO
-import qrcode
 import base64
 from datetime import datetime, timedelta
 import io
+from io import BytesIO
 import os
-import urllib.parse
 import pandas as pd
+import qrcode
 import requests
 import streamlit as st
 
 FILE_PATH = "objednavky_lcecko.csv"
-BANK_ACCOUNT = "123456789"  # Dopňte číslo účtu L-Céčka
-BANK_CODE = "0800"  # Doplňte kód banky
+BANK_ACCOUNT = "123456789"  # Doplňte číslo účtu L-Céčka
+BANK_CODE = "0800"       # Doplňte kód banky
 
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 GITHUB_REPO = st.secrets.get("GITHUB_REPO", "")
-ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "lcecko2026")
+ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "heslo1234")
 
 st.set_page_config(page_title="L-Céčko | Objednávkový systém", layout="wide", page_icon="🥗")
 
@@ -39,7 +38,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Databázové funkce GitHub
 def get_headers():
     return {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -90,8 +88,8 @@ def uloz_objednavky(df, sha=None):
 
 df_orders, current_sha = nacti_objednavky()
 
-# Přepínání mezi Zákaznickým formulářem a Administrací
-st.sidebar.image("https://www.l-cecko.cz/wp-content/uploads/2021/03/logo-l-cecko.png", width=180)
+# Navigace v postranní liště
+st.sidebar.markdown("## 🥗 L-Céčko Plzeň")
 rezim = st.sidebar.radio("Navigace:", ["🛒 Objednávka pro zákazníka", "🔐 Správa pro majitelku"])
 
 # ---------------------------------------------------------
@@ -179,22 +177,24 @@ if rezim == "🛒 Objednávka pro zákazníka":
                 if uloz_objednavky(df_aktualni, current_sha):
                     st.success("🎉 Objednávka byla úspěšně přijata!")
                     
-                  # Generování standardní české QR platby (SPD format)
-spd_str = f"SPD*1.0*ACC:{BANK_ACCOUNT}/{BANK_CODE}*AM:{cena_za_jednotku:.2f}*CC:CZK*X-VS:{nove_id}*MSG:L-Cecko ID {nove_id}"
-qr_img = qrcode.make(spd_str)
-buf = BytesIO()
-qr_img.save(buf, format="PNG")
-
-st.markdown("---")
-st.markdown("### 💳 Podklady pro platbu převodem")
-col_qr, col_info = st.columns([1, 1.5])
-with col_qr:
-    st.image(buf.getvalue(), caption="Naskenujte v banking aplikaci", width=200)
-with col_info:
-    st.write(f"**Číslo účtu:** {BANK_ACCOUNT}/{BANK_CODE}")
-    st.write(f"**Částka:** {cena_za_jednotku} Kč")
-    st.write(f"**Variabilní symbol:** {nove_id}")
-    st.write(f"**Zpráva:** L-Cecko ID {nove_id}")
+                    # Generování české QR platby (SPD format) přímo v Pythonu
+                    spd_str = f"SPD*1.0*ACC:{BANK_ACCOUNT}/{BANK_CODE}*AM:{cena_za_jednotku:.2f}*CC:CZK*X-VS:{nove_id}*MSG:L-Cecko ID {nove_id}"
+                    qr_img = qrcode.make(spd_str)
+                    buf = BytesIO()
+                    qr_img.save(buf, format="PNG")
+                    
+                    st.markdown("---")
+                    st.markdown("### 💳 Podklady pro platbu převodem")
+                    col_qr, col_info = st.columns([1, 1.5])
+                    with col_qr:
+                        st.image(buf.getvalue(), caption="Naskenujte v banking aplikaci", width=200)
+                    with col_info:
+                        st.write(f"**Číslo účtu:** {BANK_ACCOUNT}/{BANK_CODE}")
+                        st.write(f"**Částka:** {cena_za_jednotku} Kč")
+                        st.write(f"**Variabilní symbol:** {nove_id}")
+                        st.write(f"**Zpráva:** L-Cecko ID {nove_id}")
+                else:
+                    st.error("❌ Chyba při ukládání objednávky. Zkuste to prosím znovu.")
 
 # ---------------------------------------------------------
 # 2. SPRÁVA PRO MAJITELKU A KUCHYŇ
@@ -220,7 +220,6 @@ else:
             st.subheader("👨‍🍳 Souhrn porcí pro kuchyň")
             if not df_orders.empty:
                 vybrany_den = st.date_input("Zobrazit souhrn k datu:", value=datetime.today())
-                # Filtrování objednávek aktivních v daný den
                 df_kuchyn = df_orders[df_orders["Kategorie"] == "Krabičkové diety"]
                 st.write(f"**Přehled menu k uvaření pro:** {vybrany_den.strftime('%d.%m.%Y')}")
                 
