@@ -18,9 +18,14 @@ ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "heslo1234")
 
 st.set_page_config(page_title="L-Céčko | Objednávkový systém", layout="wide", page_icon="🥗")
 
-# Vizuální styl L-Céčka
+# Vizuální styl L-Céčka + Skrytí horní lišty Streamlitu
 st.markdown("""
     <style>
+    /* Skrytí horní lišty s tlačítky (Share, Edit atd.) a patičky Streamlitu */
+    header {visibility: hidden;}
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    
     .stApp {
         background-color: #f7f9fb;
     }
@@ -118,7 +123,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
             ])
             delka_trvani = st.radio("Délka programu:", ["Týdenní program (5 dní)", "Měsíční program (20 dní)"])
             
-            # Reálné ceny L-Céčka (včetně aktualizovaného Low Carb)
+            # Reálné ceny L-Céčka
             ceny_krabicky = {
                 "Krabičková strava – redukční program pro ženy (5 000–5 500 kJ)": {
                     "Týdenní program (5 dní)": 1800,
@@ -166,7 +171,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
         st.markdown(f"### **Celková cena: {cena_za_jednotku} Kč**")
         
         if st.button("Odeslat a vygenerovat QR platbu", type="primary", use_container_width=True):
-            if not all([jmeno, prijmeni, telefon, email, adresa, poznámka]):
+            if not all([jmeno, prijmeni, telefon, email, adresa]):
                 st.warning("⚠️ Prosím, vyplňte všechny kontaktní i doručovací údaje.")
             else:
                 nove_id = 1 if df_orders.empty else int(df_orders["ID"].max()) + 1
