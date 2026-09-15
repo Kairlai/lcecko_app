@@ -111,11 +111,12 @@ if rezim == "🛒 Objednávka pro zákazníka":
         pocet_jednotek = 1
         
         if kategorie == "Krabičkové diety":
-            vybrany_program = st.selectbox("Vyberte program:", [
-                "FIT Program (Celodenní)",
-                "BEZLEPKOVÝ Program (Celodenní)",
-                "VEGETARIÁNSKÝ Program (Celodenní)",
-                "REDUKČNÍ Program / LOW CARB"
+            vybrany_program = st.selectbox("Výběr programu *", [
+                "Krabičková strava – redukční program pro ženy (5–5 000 kJ)",
+                "Krabičková strava – redukční program pro muže (7–7 500 kJ)",
+                "Low Carb",
+                "Bezlepkový program",
+                "Vegetariánský program"
             ])
             delka_trvani = st.select_slider("Délka programu:", options=["1 týden (5 dní)", "2 týdny (10 dní)", "1 měsíc (20 dní)"])
             ceník = {"1 týden (5 dní)": 1850, "2 týdny (10 dní)": 3500, "1 měsíc (20 dní)": 6800}
@@ -177,7 +178,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
                 if uloz_objednavky(df_aktualni, current_sha):
                     st.success("🎉 Objednávka byla úspěšně přijata!")
                     
-                    # Generování české QR platby (SPD format) přímo v Pythonu
+                    # Generování české QR platby (SPD format)
                     spd_str = f"SPD*1.0*ACC:{BANK_ACCOUNT}/{BANK_CODE}*AM:{cena_za_jednotku:.2f}*CC:CZK*X-VS:{nove_id}*MSG:L-Cecko ID {nove_id}"
                     qr_img = qrcode.make(spd_str)
                     buf = BytesIO()
