@@ -118,7 +118,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
             ])
             delka_trvani = st.radio("Délka programu:", ["Týdenní program (5 dní)", "Měsíční program (20 dní)"])
             
-            # Reálné ceny L-Céčka
+            # Reálné ceny L-Céčka (včetně aktualizovaného Low Carb)
             ceny_krabicky = {
                 "Krabičková strava – redukční program pro ženy (5 000–5 500 kJ)": {
                     "Týdenní program (5 dní)": 1800,
@@ -129,8 +129,8 @@ if rezim == "🛒 Objednávka pro zákazníka":
                     "Měsíční program (20 dní)": 8200
                 },
                 "Low Carb": {
-                    "Týdenní program (5 dní)": 1800,
-                    "Měsíční program (20 dní)": 7200
+                    "Týdenní program (5 dní)": 2200,
+                    "Měsíční program (20 dní)": 8800
                 }
             }
             cena_za_jednotku = ceny_krabicky[vybrany_program][delka_trvani]
@@ -166,7 +166,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
         st.markdown(f"### **Celková cena: {cena_za_jednotku} Kč**")
         
         if st.button("Odeslat a vygenerovat QR platbu", type="primary", use_container_width=True):
-            if not all([jmeno, prijmeni, telefon, email, adresa]):
+            if not all([jmeno, prijmeni, telefon, email, adresa, poznámka]):
                 st.warning("⚠️ Prosím, vyplňte všechny kontaktní i doručovací údaje.")
             else:
                 nove_id = 1 if df_orders.empty else int(df_orders["ID"].max()) + 1
