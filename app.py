@@ -4,16 +4,18 @@ import io
 from io import BytesIO
 import os
 import random
-import urllib.parse  # Pro tvorbu odkazů na Mapy a WhatsApp
+import urllib.parse
 import pandas as pd
 import qrcode
 import requests
+import json
 import streamlit as st
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
 
 FILE_PATH = "objednavky_lcecko.csv"
+SETTINGS_PATH = "nastaveni_lcecko.json"
 LOGO_PATH = "logo.jpg" 
 BANK_ACCOUNT = "123456789"  # Doplňte číslo účtu L-Céčka
 BANK_CODE = "0800"       # Doplňte kód banky
@@ -63,6 +65,14 @@ st.markdown("""
         border-left: 5px solid #4A7833;
         margin-bottom: 20px;
     }
+    
+    .filter-box {
+        background-color: #f8f9fa;
+        padding: 15px 15px 5px 15px;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        margin-bottom: 20px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -71,6 +81,39 @@ def get_headers():
         "Authorization": f"token {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
     }
+
+def nacti_nastaveni():
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        if not os.path.exists(SETTINGS_PATH):
+            with open(SETTINGS_PATH, "w") as f:
+                json.dump({"cukrovi": True}, f)
+        with open(SETTINGS_PATH, "r") as f:
+            return json.load(f), None
+
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{SETTINGS_PATH}"
+    res = requests.get(url, headers=get_headers())
+    if res.status_code == 200:
+        data = res.json()
+        sha = data["sha"]
+        content_str = base64.b64decode(data["content"]).decode("utf-8")
+        return json.loads(content_str), sha
+    else:
+        return {"cukrovi": True}, None
+
+def uloz_nastaveni(nastaveni_dict, sha=None):
+    obsah = json.dumps(nastaveni_dict)
+    if not GITHUB_TOKEN or not GITHUB_REPO:
+        with open(SETTINGS_PATH, "w") as f:
+            f.write(obsah)
+        return True
+
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{SETTINGS_PATH}"
+    content_b64 = base64.b64encode(obsah.encode("utf-8")).decode("utf-8")
+    payload = {"message": "Aktualizace nastavení", "content": content_b64}
+    if sha:
+        payload["sha"] = sha
+    res = requests.put(url, headers=get_headers(), json=payload)
+    return res.status_code in [200, 201]
 
 def nacti_objednavky():
     if not GITHUB_TOKEN or not GITHUB_REPO:
@@ -184,16 +227,13 @@ def spust_gastro_oslavu():
     st.markdown(html_str, unsafe_allow_html=True)
 
 def vytvor_whatsapp_odkaz(telefon):
-    """Převede číslo na formát pro WhatsApp a předvyplní zprávu."""
     tel_cisty = "".join([c for c in str(telefon) if c.isdigit() or c == '+'])
     if not tel_cisty.startswith('+'):
         if tel_cisty.startswith('00'):
             tel_cisty = '+' + tel_cisty[2:]
         else:
-            # Předpokládáme CZ předvolbu, pokud chybí
             tel_cisty = '+420' + tel_cisty
     
-    # Odstraníme + pro vložení do URL
     tel_cisty_url = tel_cisty.replace('+', '')
     zprava = "Dobrý den, tady kurýr L-Céčko. Za cca 10 minut jsem u Vás s krabičkami! 🥗"
     zprava_url = urllib.parse.quote(zprava)
@@ -201,6 +241,7 @@ def vytvor_whatsapp_odkaz(telefon):
 
 
 df_orders, current_sha = nacti_objednavky()
+nastaveni_app, sha_nastaveni = nacti_nastaveni()
 
 if os.path.exists(LOGO_PATH):
     st.sidebar.image(LOGO_PATH, width=140)
@@ -213,14 +254,19 @@ rezim = st.sidebar.radio("Navigace:", ["🛒 Objednávka pro zákazníka", "🔐
 # ---------------------------------------------------------
 if rezim == "🛒 Objednávka pro zákazníka":
     st.markdown("<h1 class='main-header'>🥗 Objednávkový formulář L-Céčko</h1>", unsafe_allow_html=True)
-    
     st.write("Vyberte si stravovací program nebo sezónní nabídku a my se postaráme o zbytek.")
     
     col_menu, col_user = st.columns([1.2, 1])
     
     with col_menu:
         st.subheader("1. Výběr z nabídky")
-        kategorie = st.radio("Kategorie nabídky:", ["Krabičkové diety", "Snídaňové balíčky", "Vánoční cukroví"], horizontal=True)
+        
+        # Dynamické zobrazení kategorií podle nastavení administrátora
+        moznosti_kategorii = ["Krabičkové diety", "Snídaňové balíčky"]
+        if nastaveni_app.get("cukrovi", True):
+            moznosti_kategorii.append("Vánoční cukroví")
+            
+        kategorie = st.radio("Kategorie nabídky:", moznosti_kategorii, horizontal=True)
         
         vybrany_program = ""
         delka_trvani = ""
@@ -363,6 +409,7 @@ else:
         
         if not df_orders.empty:
             st.markdown("### 📈 Finanční přehled")
+            
             col_m1, col_m2, col_m3, col_m4 = st.columns(4)
             
             obrat_zaplaceno = df_orders[df_orders['Stav_Platby'] == 'Zaplaceno']['Cena_Celkem'].sum()
@@ -377,22 +424,47 @@ else:
             col_m2.metric("⌛ Očekávané platby", obrat_ceka_str)
             col_m3.metric("⚠️ Nezkontrolované obj.", f"{pocet_ceka} ks")
             col_m4.metric("📦 Celkem objednávek", f"{pocet_celkem} ks")
-            
             st.divider()
         
-        tab1, tab2, tab3 = st.tabs(["📊 Správa databáze", "👨‍🍳 Výkaz pro Kuchyň", "🚗 Seznam pro Kurýra"])
+        # Nová 4. záložka s Nastavením
+        tab1, tab2, tab3, tab4 = st.tabs(["📊 Správa databáze", "👨‍🍳 Výkaz pro Kuchyň", "🚗 Seznam pro Kurýra", "⚙️ Nastavení nabídky"])
         
         with tab1:
             st.subheader("Kompletní databáze objednávek")
             if not df_orders.empty:
-                st.info("💡 Pro smazání objednávky zaškrtněte políčko v prvním sloupci **Smazat 🗑️** a uložte změny.")
+                # --- FILTRY A VYHLEDÁVÁNÍ ---
+                st.markdown("<div class='filter-box'>", unsafe_allow_html=True)
+                st.markdown("**🔍 Filtrovat objednávky:**")
+                col_f1, col_f2, col_f3 = st.columns(3)
                 
-                df_editor_input = df_orders.copy()
-                if "Smazat 🗑️" not in df_editor_input.columns:
-                    df_editor_input.insert(0, "Smazat 🗑️", False)
+                search_query = col_f1.text_input("Hledat (Jméno, Adresa, ID...)", "").lower()
+                
+                dostupne_stavy = list(df_orders['Stav_Platby'].unique())
+                vybrane_stavy = col_f2.multiselect("Stav platby:", dostupne_stavy, default=dostupne_stavy)
+                
+                dostupna_data = sorted(list(df_orders['Datum_Od'].unique()))
+                vybrane_datum = col_f3.selectbox("Datum doručení (Od):", ["Všechna data"] + dostupna_data)
+                st.markdown("</div>", unsafe_allow_html=True)
+
+                df_filtered = df_orders.copy()
+                
+                if search_query:
+                    mask = df_filtered.apply(lambda row: row.astype(str).str.lower().str.contains(search_query).any(), axis=1)
+                    df_filtered = df_filtered[mask]
+                
+                if vybrane_stavy:
+                    df_filtered = df_filtered[df_filtered['Stav_Platby'].isin(vybrane_stavy)]
+                    
+                if vybrane_datum != "Všechna data":
+                    df_filtered = df_filtered[df_filtered['Datum_Od'] == vybrane_datum]
+
+                st.info(f"💡 Zobrazeno {len(df_filtered)} objednávek. Pro smazání zaškrtněte políčko **Smazat 🗑️** a uložte změny.")
+                
+                if "Smazat 🗑️" not in df_filtered.columns:
+                    df_filtered.insert(0, "Smazat 🗑️", False)
 
                 edited_df = st.data_editor(
-                    df_editor_input,
+                    df_filtered,
                     use_container_width=True,
                     hide_index=True,
                     column_config={
@@ -409,23 +481,27 @@ else:
                     }
                 )
                 
-                if st.button("💾 Uložit změny v databázi", type="primary"):
-                    df_k_ulozeni = edited_df[edited_df["Smazat 🗑️"] == False].drop(columns=["Smazat 🗑️"])
+                if st.button("💾 Uložit změny", type="primary"):
+                    radky_ke_smazani = edited_df[edited_df["Smazat 🗑️"] == True]["ID"].tolist()
+                    df_aktualni = df_orders[~df_orders["ID"].isin(radky_ke_smazani)].copy()
                     
-                    if uloz_objednavky(df_k_ulozeni, current_sha):
-                        st.success("✅ Všechny úpravy byly úspěšně uloženy!")
+                    for index, row in edited_df[edited_df["Smazat 🗑️"] == False].iterrows():
+                        df_aktualni.loc[df_aktualni["ID"] == row["ID"], "Stav_Platby"] = row["Stav_Platby"]
+                    
+                    if uloz_objednavky(df_aktualni, current_sha):
+                        st.success("✅ Změny byly uloženy!")
                         st.rerun()
                     else:
                         st.error("❌ Chyba při ukládání změn do databáze.")
                 
                 st.divider()
                 
-                export_df = df_editor_input.drop(columns=["Smazat 🗑️"], errors="ignore")
-                excel_data = vytvor_profi_excel(export_df, titulek="Všechny objednávky")
+                export_df = edited_df.drop(columns=["Smazat 🗑️"], errors="ignore")
+                excel_data = vytvor_profi_excel(export_df, titulek="Vyfiltrované objednávky")
                 st.download_button(
-                    label="📥 Stáhnout kompletní databázi (Excel)", 
+                    label="📥 Stáhnout aktuální zobrazení do Excelu", 
                     data=excel_data, 
-                    file_name=f"lcecko_komplet_{datetime.now().strftime('%d_%m')}.xlsx", 
+                    file_name=f"lcecko_export_{datetime.now().strftime('%d_%m')}.xlsx", 
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
             else:
@@ -435,69 +511,91 @@ else:
             st.subheader("👨‍🍳 Souhrn porcí pro kuchyň")
             if not df_orders.empty:
                 vybrany_den = st.date_input("Zobrazit souhrn k datu:", value=datetime.today())
-                df_kuchyn = df_orders[df_orders["Kategorie"] == "Krabičkové diety"]
+                
+                df_kuchyn = df_orders[(df_orders["Kategorie"] == "Krabičkové diety") & 
+                                      (df_orders["Datum_Od"] == vybrany_den.strftime("%Y-%m-%d"))]
                 
                 st.write(f"**Přehled menu k uvaření pro:** {vybrany_den.strftime('%d.%m.%Y')}")
                 
-                souhrn = df_kuchyn["Program"].value_counts().reset_index()
-                souhrn.columns = ["Stravovací Program", "Počet Porcí"]
-                st.table(souhrn)
-                
-                excel_kuchyn = vytvor_profi_excel(souhrn, titulek="Vyroba_Kuchyn")
-                st.download_button(
-                    label="👨‍🍳 Stáhnout výkaz do Excelu", 
-                    data=excel_kuchyn, 
-                    file_name=f"kuchyn_vyroba_{vybrany_den.strftime('%d_%m')}.xlsx", 
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+                if not df_kuchyn.empty:
+                    souhrn = df_kuchyn["Program"].value_counts().reset_index()
+                    souhrn.columns = ["Stravovací Program", "Počet Porcí"]
+                    st.table(souhrn)
+                    
+                    excel_kuchyn = vytvor_profi_excel(souhrn, titulek="Vyroba_Kuchyn")
+                    st.download_button(
+                        label="👨‍🍳 Stáhnout výkaz do Excelu", 
+                        data=excel_kuchyn, 
+                        file_name=f"kuchyn_vyroba_{vybrany_den.strftime('%d_%m')}.xlsx", 
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                else:
+                    st.info(f"Na den {vybrany_den.strftime('%d.%m.%Y')} nejsou naplánované žádné diety.")
             else:
                 st.info("Zatím žádné objednávky v databázi.")
                 
         with tab3:
             st.subheader("🚗 Rozvozový arch pro kurýra")
             if not df_orders.empty:
-                # 1. Chytré tlačítko pro spuštění navigace v Google Mapách
-                adresy = df_orders["Adresa"].dropna().tolist()
-                if adresy:
-                    # Pokud je adres moc, omezíme na prvních 10 (kvůli limitu URL adres u Googlu)
-                    adresy_mapy = adresy[:10] if len(adresy) > 10 else adresy
-                    lomitka_adresy = "/".join([urllib.parse.quote(a) for a in adresy_mapy])
-                    google_maps_url = f"https://www.google.com/maps/dir/{lomitka_adresy}"
-                    
-                    st.markdown(f"""
-                        <a href="{google_maps_url}" target="_blank" style="background-color: #4285F4; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; margin-bottom: 20px; border: 1px solid #357ae8;">
-                            📍 Naplánovat trasu rozvozu v Google Mapách
-                        </a>
-                    """, unsafe_allow_html=True)
-                    if len(adresy) > 10:
-                        st.caption("⚠️ Zobrazená trasa na mapě obsahuje prvních 10 zastávek (limit prohlížeče).")
+                vybrany_den_kuryr = st.date_input("Rozvozy na den:", value=datetime.today(), key="kuryr_den")
+                df_kuryr = df_orders[df_orders["Datum_Od"] == vybrany_den_kuryr.strftime("%Y-%m-%d")]
+                
+                if not df_kuryr.empty:
+                    adresy = df_kuryr["Adresa"].dropna().tolist()
+                    if adresy:
+                        adresy_mapy = adresy[:10] if len(adresy) > 10 else adresy
+                        lomitka_adresy = "/".join([urllib.parse.quote(a) for a in adresy_mapy])
+                        google_maps_url = f"https://www.google.com/maps/dir/{lomitka_adresy}"
+                        
+                        st.markdown(f"""
+                            <a href="{google_maps_url}" target="_blank" style="background-color: #4285F4; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; margin-bottom: 20px; border: 1px solid #357ae8;">
+                                📍 Naplánovat trasu na dnešek v Google Mapách
+                            </a>
+                        """, unsafe_allow_html=True)
+                        if len(adresy) > 10:
+                            st.caption("⚠️ Zobrazená trasa na mapě obsahuje prvních 10 zastávek (limit prohlížeče).")
 
-                # 2. Vylepšená tabulka s přímým proklikem na WhatsApp
-                rozvoz_df = df_orders[["Jmeno", "Prijmeni", "Telefon", "Adresa", "Poznamka_Kuryr", "Program", "Stav_Platby"]].copy()
-                rozvoz_df["Napsat zákazníkovi 💬"] = rozvoz_df["Telefon"].apply(vytvor_whatsapp_odkaz)
-                
-                st.data_editor(
-                    rozvoz_df,
-                    use_container_width=True,
-                    hide_index=True,
-                    disabled=True, # Tabulka pro kurýra je jen pro čtení
-                    column_config={
-                        "Napsat zákazníkovi 💬": st.column_config.LinkColumn(
-                            "WhatsApp",
-                            display_text="Otevřít chat 💬"
-                        )
-                    }
-                )
-                
-                excel_kuryr = vytvor_profi_excel(rozvoz_df.drop(columns=["Napsat zákazníkovi 💬"]), titulek="Rozvozy")
-                st.download_button(
-                    label="🚗 Stáhnout arch pro kurýra (Excel)", 
-                    data=excel_kuryr, 
-                    file_name=f"kuryr_rozvozy_{datetime.now().strftime('%d_%m')}.xlsx", 
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+                    rozvoz_df = df_kuryr[["Jmeno", "Prijmeni", "Telefon", "Adresa", "Poznamka_Kuryr", "Program", "Stav_Platby"]].copy()
+                    rozvoz_df["Napsat zákazníkovi 💬"] = rozvoz_df["Telefon"].apply(vytvor_whatsapp_odkaz)
+                    
+                    st.data_editor(
+                        rozvoz_df,
+                        use_container_width=True,
+                        hide_index=True,
+                        disabled=True,
+                        column_config={
+                            "Napsat zákazníkovi 💬": st.column_config.LinkColumn(
+                                "WhatsApp",
+                                display_text="Otevřít chat 💬"
+                            )
+                        }
+                    )
+                    
+                    excel_kuryr = vytvor_profi_excel(rozvoz_df.drop(columns=["Napsat zákazníkovi 💬"]), titulek="Rozvozy")
+                    st.download_button(
+                        label="🚗 Stáhnout arch pro kurýra (Excel)", 
+                        data=excel_kuryr, 
+                        file_name=f"kuryr_rozvozy_{vybrany_den_kuryr.strftime('%d_%m')}.xlsx", 
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                else:
+                    st.info(f"Na den {vybrany_den_kuryr.strftime('%d.%m.%Y')} nejsou žádné rozvozy.")
             else:
                 st.info("Zatím žádné adresy k rozvozu.")
+                
+        with tab4:
+            st.subheader("⚙️ Zapínání a vypínání sezónní nabídky")
+            st.write("Pomocí tohoto přepínače můžete jednoduše skrýt určité sekce z webu pro zákazníky, když už nejsou aktuální.")
+            
+            zobrazovat_cukrovi = st.checkbox("Zobrazovat sekci 'Vánoční cukroví' pro zákazníky", value=nastaveni_app.get("cukrovi", True))
+            
+            if st.button("Uložit nastavení webu", type="primary"):
+                nove_nastaveni = {"cukrovi": zobrazovat_cukrovi}
+                if uloz_nastaveni(nove_nastaveni, sha_nastaveni):
+                    st.success("✅ Nastavení nabídky bylo úspěšně uloženo!")
+                    st.rerun()
+                else:
+                    st.error("❌ Při ukládání došlo k chybě.")
     elif heslo:
         st.error("❌ Nesprávné heslo.")
 
