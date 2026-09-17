@@ -86,7 +86,7 @@ def nacti_nastaveni():
     if not GITHUB_TOKEN or not GITHUB_REPO:
         if not os.path.exists(SETTINGS_PATH):
             with open(SETTINGS_PATH, "w") as f:
-                json.dump({"snidane": True, "cukrovi": True}, f)
+                json.dump({"snidane": True, "cukrovi": True, "zakazkova": True}, f)
         with open(SETTINGS_PATH, "r") as f:
             return json.load(f), None
 
@@ -98,7 +98,7 @@ def nacti_nastaveni():
         content_str = base64.b64decode(data["content"]).decode("utf-8")
         return json.loads(content_str), sha
     else:
-        return {"snidane": True, "cukrovi": True}, None
+        return {"snidane": True, "cukrovi": True, "zakazkova": True}, None
 
 def uloz_nastaveni(nastaveni_dict, sha=None):
     obsah = json.dumps(nastaveni_dict)
@@ -334,8 +334,9 @@ if rezim == "🛒 Objednávka pro zákazníka":
     with col_menu:
         st.subheader("1. Výběr z nabídky")
         
-        # DYNAMICKÉ SEZNAMY KATEGORIÍ DLE NASTAVENÍ
         moznosti_kategorii = ["Krabičkové diety"]
+        if nastaveni_app.get("zakazkova", True):
+            moznosti_kategorii.append("Zakázková výroba / Catering")
         if nastaveni_app.get("snidane", True):
             moznosti_kategorii.append("Snídaňové balíčky")
         if nastaveni_app.get("cukrovi", True):
@@ -371,6 +372,33 @@ if rezim == "🛒 Objednávka pro zákazníka":
                 }
             }
             cena_za_jednotku = ceny_krabicky[vybrany_program][delka_trvani]
+
+        elif kategorie == "Zakázková výroba / Catering":
+            st.markdown("**Vyberte si položky a počet kusů:**")
+            ceny_catering = {
+                "Chlebíček šunkový s okurkou": 38,
+                "Chlebíček hermelínový": 38,
+                "Chlebíček s debrecínkou": 38,
+                "Obložená mísa uzeninová (1 kg)": 690,
+                "Obložená mísa sýrová (1 kg)": 690,
+                "Jednohubky mix (ks)": 16,
+                "Mini dezerty mix (ks)": 28
+            }
+            
+            vybrane_polozky = []
+            celkova_cena_catering = 0
+            
+            col_cat1, col_cat2 = st.columns(2)
+            for idx, (polozka, cena) in enumerate(ceny_catering.items()):
+                target_col = col_cat1 if idx % 2 == 0 else col_cat2
+                ks = target_col.number_input(f"{polozka} ({cena} Kč/ks)", min_value=0, max_value=200, value=0, key=f"cat_{idx}")
+                if ks > 0:
+                    vybrane_polozky.append(f"{ks}x {polozka}")
+                    celkova_cena_catering += ks * cena
+            
+            vybrany_program = ", ".join(vybrane_polozky) if vybrane_polozky else "Žádná položka nevybrána"
+            delka_trvani = "Kusový odběr"
+            cena_za_jednotku = celkova_cena_catering
             
         elif kategorie == "Snídaňové balíčky":
             vybrany_program = st.selectbox("Typ snídaní:", [
@@ -426,6 +454,8 @@ if rezim == "🛒 Objednávka pro zákazníka":
         if st.button("Odeslat a vygenerovat QR platbu", type="primary", use_container_width=True):
             if not all([jmeno, prijmeni, telefon, email, ulice, cp, mesto]):
                 st.warning("⚠️ Prosím, vyplňte všechny osobní údaje a celou adresu.")
+            elif kategorie == "Zakázková výroba / Catering" and cena_za_jednotku == 0:
+                st.warning("⚠️ Vyberte prosím alespoň 1 kus některého produktu z nabídky cateringu.")
             else:
                 with st.spinner('Odesílám objednávku do kuchyně... 👩‍🍳'):
                     psc_text = f", {psc}" if psc else ""
@@ -606,14 +636,13 @@ else:
             if not df_orders.empty:
                 vybrany_den = st.date_input("Zobrazit souhrn k datu:", value=datetime.today())
                 
-                df_kuchyn = df_orders[(df_orders["Kategorie"] == "Krabičkové diety") & 
-                                      (df_orders["Datum_Od"] == vybrany_den.strftime("%Y-%m-%d"))].copy()
+                df_kuchyn = df_orders[df_orders["Datum_Od"] == vybrany_den.strftime("%Y-%m-%d")].copy()
                 
-                st.write(f"**Přehled menu k uvaření pro:** {vybrany_den.strftime('%d.%m.%Y')}")
+                st.write(f"**Přehled menu a výroby pro:** {vybrany_den.strftime('%d.%m.%Y')}")
                 
                 if not df_kuchyn.empty:
                     souhrn = df_kuchyn["Program"].value_counts().reset_index()
-                    souhrn.columns = ["Stravovací Program", "Počet Porcí"]
+                    souhrn.columns = ["Stravovací Program / Produkty", "Počet / Ks"]
                     st.table(souhrn)
                     
                     st.markdown("#### ⚠️ Zvláštní požadavky a alergie na tento den:")
@@ -634,7 +663,7 @@ else:
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     )
                 else:
-                    st.info(f"Na den {vybrany_den.strftime('%d.%m.%Y')} nejsou naplánované žádné diety.")
+                    st.info(f"Na den {vybrany_den.strftime('%d.%m.%Y')} nejsou naplánované žádné objednávky.")
             else:
                 st.info("Zatím žádné objednávky v databázi.")
                 
@@ -710,11 +739,13 @@ else:
             st.subheader("⚙️ Zapínání a vypínání částí nabídky")
             st.write("Pomocí těchto přepínačů můžete jednoduše skrýt určité sekce z webu pro zákazníky, když je zrovna nenabízíte.")
             
+            zobrazovat_zakazkova = st.checkbox("Zobrazovat sekci 'Zakázková výroba / Catering' pro zákazníky", value=nastaveni_app.get("zakazkova", True))
             zobrazovat_snidane = st.checkbox("Zobrazovat sekci 'Snídaňové balíčky' pro zákazníky", value=nastaveni_app.get("snidane", True))
             zobrazovat_cukrovi = st.checkbox("Zobrazovat sekci 'Vánoční cukroví' pro zákazníky", value=nastaveni_app.get("cukrovi", True))
             
             if st.button("Uložit nastavení webu", type="primary"):
                 nove_nastaveni = {
+                    "zakazkova": zobrazovat_zakazkova,
                     "snidane": zobrazovat_snidane,
                     "cukrovi": zobrazovat_cukrovi
                 }
