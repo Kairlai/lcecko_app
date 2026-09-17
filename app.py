@@ -26,8 +26,10 @@ st.set_page_config(page_title="L-Céčko | Objednávkový systém", layout="wide
 # Vizuální styl L-Céčka
 st.markdown("""
     <style>
-    header {visibility: hidden;}
+    /* Skryjeme pouze pravé horní menu Streamlitu, ale zachováme šipku pro levý panel */
     #MainMenu {visibility: hidden;}
+    [data-testid="stHeaderActionElements"] {visibility: hidden;}
+    header {background-color: transparent !important;}
     footer {visibility: hidden;}
     
     h1, h2, h3, .main-header {
