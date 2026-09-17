@@ -154,7 +154,6 @@ def vytvor_profi_excel(df, titulek="Objednávky"):
     return output.getvalue()
 
 def spust_gastro_oslavu():
-    """Vlastní animace padajícího jídla přes celou obrazovku"""
     food_emojis = ['🥗', '🍎', '🥦', '🥕', '🥑', '🥪', '🍗', '🍅', '🥒', '🍳', '🥩', '🍲']
     html_str = """
     <style>
@@ -252,12 +251,29 @@ if rezim == "🛒 Objednávka pro zákazníka":
 
     with col_user:
         st.subheader("2. Doručovací údaje & Platba")
-        jmeno = st.text_input("Jméno:").strip()
-        prijmeni = st.text_input("Příjmení:").strip()
-        telefon = st.text_input("Telefonní číslo:").strip()
-        email = st.text_input("E-mail:").strip()
-        adresa = st.text_input("Adresa doručení (Ulice, č.p., Město):").strip()
-        poznamka = st.text_input("Poznámka pro kurýra (zvonek, patro...):").strip()
+        
+        # Osobní údaje vedle sebe
+        col_jmeno, col_prijmeni = st.columns(2)
+        jmeno = col_jmeno.text_input("Jméno:").strip()
+        prijmeni = col_prijmeni.text_input("Příjmení:").strip()
+        
+        col_tel, col_email = st.columns(2)
+        telefon = col_tel.text_input("Telefonní číslo:").strip()
+        email = col_email.text_input("E-mail:").strip()
+        
+        st.markdown("<p style='font-size: 14px; font-weight: bold; margin-bottom: 0;'>Adresa pro kurýra</p>", unsafe_allow_html=True)
+        
+        # Ulice a číslo vedle sebe
+        col_ulice, col_cp = st.columns([2, 1])
+        ulice = col_ulice.text_input("Ulice (případně obec):").strip()
+        cp = col_cp.text_input("Číslo popisné:").strip()
+        
+        # Město a PSČ vedle sebe (Město předvyplněno)
+        col_mesto, col_psc = st.columns([2, 1])
+        mesto = col_mesto.text_input("Město:", value="Plzeň").strip()
+        psc = col_psc.text_input("PSČ (nepovinné):").strip()
+        
+        poznamka = st.text_input("Poznámka pro kurýra (zvonek, kód od dveří...):").strip()
         
         st.divider()
         
@@ -270,10 +286,14 @@ if rezim == "🛒 Objednávka pro zákazníka":
         """, unsafe_allow_html=True)
         
         if st.button("Odeslat a vygenerovat QR platbu", type="primary", use_container_width=True):
-            if not all([jmeno, prijmeni, telefon, email, adresa]):
-                st.warning("⚠️ Prosím, vyplňte všechny kontaktní i doručovací údaje.")
+            if not all([jmeno, prijmeni, telefon, email, ulice, cp, mesto]):
+                st.warning("⚠️ Prosím, vyplňte všechny osobní údaje a celou adresu.")
             else:
                 with st.spinner('Odesílám objednávku do kuchyně... 👩‍🍳'):
+                    # Spojení políček do jednoho formátu pro Excel a kurýra
+                    psc_text = f", {psc}" if psc else ""
+                    adresa_komplet = f"{ulice} {cp}, {mesto}{psc_text}"
+                    
                     nove_id = 1 if df_orders.empty else int(df_orders["ID"].max()) + 1
                     nova_objednavka = pd.DataFrame([{
                         "ID": nove_id,
@@ -282,7 +302,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
                         "Prijmeni": prijmeni,
                         "Telefon": telefon,
                         "Email": email,
-                        "Adresa": adresa,
+                        "Adresa": adresa_komplet, # Zde vložíme složenou adresu
                         "Poznamka_Kuryr": poznamka,
                         "Kategorie": kategorie,
                         "Program": vybrany_program,
@@ -294,10 +314,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
                     
                     df_aktualni = pd.concat([df_orders, nova_objednavka], ignore_index=True)
                     if uloz_objednavky(df_aktualni, current_sha):
-                        
-                        # Zde spouštíme naši vlastní originální animaci jídla!
                         spust_gastro_oslavu()
-                        
                         st.success("🎉 Objednávka byla úspěšně přijata! Děkujeme.")
                         
                         spd_str = f"SPD*1.0*ACC:{BANK_ACCOUNT}/{BANK_CODE}*AM:{cena_za_jednotku:.2f}*CC:CZK*X-VS:{nove_id}*MSG:L-Cecko ID {nove_id}"
