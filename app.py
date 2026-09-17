@@ -164,7 +164,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
             vybrany_program = "Tradiční domácí vánoční cukroví (Mix)"
             delka_trvani = st.selectbox("Balení:", ["0.5 kg", "1.0 kg", "2.0 kg"])
             pocet_jednotek = st.number_input("Počet balení:", min_value=1, max_value=10, value=1)
-            ceník_cukrovi = {"0.5 kg": 490, "1.0 kg": 890, "2.0 kg": 1690}
+            ceník_cukrovi = {"0.5 kg": 490, "1.0 kg": 890, "1690": 1690}
             cena_za_jednotku = ceník_cukrovi[delka_trvani] * pocet_jednotek
 
         datum_od = st.date_input("Požadované datum doručení / od:", value=datetime.today() + timedelta(days=2))
@@ -264,7 +264,8 @@ else:
                         st.error("❌ Chyba při ukládání změn do databáze.")
                 
                 st.divider()
-                csv_data = edited_df.to_csv(index=False).encode("utf-8-sig")
+                # Export se středníkovým oddělovačem (sep=";") pro český Excel
+                csv_data = edited_df.to_csv(sep=";", index=False).encode("utf-8-sig")
                 st.download_button("📥 Stáhnout objednávky do Excelu", data=csv_data, file_name="lcecko_objednavky.csv", mime="text/csv")
             else:
                 st.info("Zatím žádné objednávky v databázi.")
