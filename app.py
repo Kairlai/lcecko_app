@@ -86,7 +86,7 @@ def nacti_nastaveni():
     if not GITHUB_TOKEN or not GITHUB_REPO:
         if not os.path.exists(SETTINGS_PATH):
             with open(SETTINGS_PATH, "w") as f:
-                json.dump({"cukrovi": True}, f)
+                json.dump({"snidane": True, "cukrovi": True}, f)
         with open(SETTINGS_PATH, "r") as f:
             return json.load(f), None
 
@@ -98,7 +98,7 @@ def nacti_nastaveni():
         content_str = base64.b64decode(data["content"]).decode("utf-8")
         return json.loads(content_str), sha
     else:
-        return {"cukrovi": True}, None
+        return {"snidane": True, "cukrovi": True}, None
 
 def uloz_nastaveni(nastaveni_dict, sha=None):
     obsah = json.dumps(nastaveni_dict)
@@ -334,7 +334,10 @@ if rezim == "🛒 Objednávka pro zákazníka":
     with col_menu:
         st.subheader("1. Výběr z nabídky")
         
-        moznosti_kategorii = ["Krabičkové diety", "Snídaňové balíčky"]
+        # DYNAMICKÉ SEZNAMY KATEGORIÍ DLE NASTAVENÍ
+        moznosti_kategorii = ["Krabičkové diety"]
+        if nastaveni_app.get("snidane", True):
+            moznosti_kategorii.append("Snídaňové balíčky")
         if nastaveni_app.get("cukrovi", True):
             moznosti_kategorii.append("Vánoční cukroví")
             
@@ -377,7 +380,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
             delka_trvani = st.select_slider("Délka:", options=["5 dní", "10 dní", "20 dní"])
             ceník_snidani = {"5 dní": 650, "10 dní": 1200, "20 dní": 2200}
             cena_za_jednotku = ceník_snidani[delka_trvani]
-            
+
         elif kategorie == "Vánoční cukroví":
             vybrany_program = "Tradiční domácí vánoční cukroví (Mix)"
             delka_trvani = st.selectbox("Balení:", ["0.5 kg", "1.0 kg", "2.0 kg"])
@@ -622,49 +625,14 @@ else:
                         st.success("Dnes nejsou hlášeny žádné speciální požadavky ani alergie.")
                     
                     st.divider()
-                    col_kuchyn1, col_kuchyn2 = st.columns(2)
                     
-                    with col_kuchyn1:
-                        excel_kuchyn = vytvor_profi_excel(souhrn, titulek="Vyroba_Kuchyn")
-                        st.download_button(
-                            label="👨‍🍳 Stáhnout běžný výkaz (Excel)", 
-                            data=excel_kuchyn, 
-                            file_name=f"kuchyn_vyroba_{vybrany_den.strftime('%d_%m')}.xlsx", 
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            use_container_width=True
-                        )
-                    
-                    with col_kuchyn2:
-                        # CHYTRÉ ŠTÍTKY DO KUCHYNĚ (Pouze 1 sloupec, zkrácený název + alergie)
-                        stitky_df = df_kuchyn[["Jmeno", "Prijmeni", "Program", "Poznamka_Kuryr"]].copy()
-                        
-                        def formatuj_stitek(row):
-                            prog = str(row.get('Program', ''))
-                            if "ženy" in prog.lower(): prog_short = "Ženy"
-                            elif "muže" in prog.lower(): prog_short = "Muži"
-                            elif "low carb" in prog.lower(): prog_short = "Low Carb"
-                            else: prog_short = prog
-                            
-                            stitek = f"{row.get('Jmeno', '')} {row.get('Prijmeni', '')} | {prog_short}"
-                            
-                            poznamka = str(row.get('Poznamka_Kuryr', ''))
-                            if poznamka != "nan" and poznamka.strip():
-                                klicova_slova = ["alerg", "lepek", "bezlep", "laktóz", "laktoz", "ořech", "mlék", "mlek", "česnek", "cibul", "ryb"]
-                                if any(slovo in poznamka.lower() for slovo in klicova_slova):
-                                    stitek += f" | ⚠️ {poznamka}"
-                            return stitek
-
-                        stitky_df["ŠTÍTEK"] = stitky_df.apply(formatuj_stitek, axis=1)
-                        excel_stitky = vytvor_profi_excel(stitky_df[["ŠTÍTEK"]], titulek="Stitky")
-                        
-                        st.download_button(
-                            label="🖨️ Stáhnout štítky na krabičky k tisku", 
-                            data=excel_stitky, 
-                            file_name=f"stitky_{vybrany_den.strftime('%d_%m')}.xlsx", 
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            type="primary",
-                            use_container_width=True
-                        )
+                    excel_kuchyn = vytvor_profi_excel(souhrn, titulek="Vyroba_Kuchyn")
+                    st.download_button(
+                        label="👨‍🍳 Stáhnout běžný výkaz (Excel)", 
+                        data=excel_kuchyn, 
+                        file_name=f"kuchyn_vyroba_{vybrany_den.strftime('%d_%m')}.xlsx", 
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    )
                 else:
                     st.info(f"Na den {vybrany_den.strftime('%d.%m.%Y')} nejsou naplánované žádné diety.")
             else:
@@ -739,13 +707,17 @@ else:
                 st.info("Zatím žádné adresy k rozvozu.")
                 
         with tab4:
-            st.subheader("⚙️ Zapínání a vypínání sezónní nabídky")
-            st.write("Pomocí tohoto přepínače můžete jednoduše skrýt určité sekce z webu pro zákazníky, když už nejsou aktuální.")
+            st.subheader("⚙️ Zapínání a vypínání částí nabídky")
+            st.write("Pomocí těchto přepínačů můžete jednoduše skrýt určité sekce z webu pro zákazníky, když je zrovna nenabízíte.")
             
+            zobrazovat_snidane = st.checkbox("Zobrazovat sekci 'Snídaňové balíčky' pro zákazníky", value=nastaveni_app.get("snidane", True))
             zobrazovat_cukrovi = st.checkbox("Zobrazovat sekci 'Vánoční cukroví' pro zákazníky", value=nastaveni_app.get("cukrovi", True))
             
             if st.button("Uložit nastavení webu", type="primary"):
-                nove_nastaveni = {"cukrovi": zobrazovat_cukrovi}
+                nove_nastaveni = {
+                    "snidane": zobrazovat_snidane,
+                    "cukrovi": zobrazovat_cukrovi
+                }
                 if uloz_nastaveni(nove_nastaveni, sha_nastaveni):
                     st.success("✅ Nastavení nabídky bylo úspěšně uloženo!")
                     st.rerun()
