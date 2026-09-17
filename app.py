@@ -147,7 +147,7 @@ df_orders, current_sha = nacti_objednavky()
 
 # Navigace v postranní liště
 st.sidebar.markdown("## 🥗 L-Céčko Plzeň")
-rezim = st.sidebar.radio("Navigace:", ["🛒 Objednávka pro zákazníka", "🔐 Správa pro majitelku"])
+rezim = st.sidebar.radio("Navigace:", ["🛒 Objednávka pro zákazníka", "🔐 Správa"])
 
 # ---------------------------------------------------------
 # 1. ZÁKAZNICKÝ OBJEDNÁVKOVÝ FORMULÁŘ
@@ -204,7 +204,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
             vybrany_program = "Tradiční domácí vánoční cukroví (Mix)"
             delka_trvani = st.selectbox("Balení:", ["0.5 kg", "1.0 kg", "2.0 kg"])
             pocet_jednotek = st.number_input("Počet balení:", min_value=1, max_value=10, value=1)
-            ceník_cukrovi = {"0.5 kg": 490, "1.0 kg": 890, "1690": 1690}
+            ceník_cukrovi = {"0.5 kg": 490, "1.0 kg": 890, "2.0 kg": 1690}
             cena_za_jednotku = ceník_cukrovi[delka_trvani] * pocet_jednotek
 
         datum_od = st.date_input("Požadované datum doručení / od:", value=datetime.today() + timedelta(days=2))
@@ -282,7 +282,6 @@ else:
             if not df_orders.empty:
                 st.info("💡 Pro smazání objednávky zaškrtněte políčko v prvním sloupci **Smazat 🗑️** a uložte změny.")
                 
-                # Příprava databáze s trvalým sloupcem pro smazání
                 df_editor_input = df_orders.copy()
                 if "Smazat 🗑️" not in df_editor_input.columns:
                     df_editor_input.insert(0, "Smazat 🗑️", False)
@@ -306,7 +305,6 @@ else:
                 )
                 
                 if st.button("💾 Uložit změny v databázi", type="primary"):
-                    # Vyřazení zaškrtnutých řádků ke smazání
                     df_k_ulozeni = edited_df[edited_df["Smazat 🗑️"] == False].drop(columns=["Smazat 🗑️"])
                     
                     if uloz_objednavky(df_k_ulozeni, current_sha):
@@ -317,7 +315,6 @@ else:
                 
                 st.divider()
                 
-                # Export do Excelu bez pomocného sloupce pro smazání
                 export_df = df_editor_input.drop(columns=["Smazat 🗑️"], errors="ignore")
                 excel_data = vytvor_profi_excel(export_df)
                 st.download_button(
