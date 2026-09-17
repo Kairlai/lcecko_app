@@ -12,6 +12,7 @@ from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
 
 FILE_PATH = "objednavky_lcecko.csv"
+LOGO_PATH = "logo.png"
 BANK_ACCOUNT = "123456789"  # Doplňte číslo účtu L-Céčka
 BANK_CODE = "0800"       # Doplňte kód banky
 
@@ -145,7 +146,10 @@ def vytvor_profi_excel(df):
 
 df_orders, current_sha = nacti_objednavky()
 
-# Navigace v postranní liště
+# Zobrazení loga v levém horním rohu (postranní lišta)
+if os.path.exists(LOGO_PATH):
+    st.sidebar.image(LOGO_PATH, width=140)
+
 st.sidebar.markdown("## 🥗 L-Céčko Plzeň")
 rezim = st.sidebar.radio("Navigace:", ["🛒 Objednávka pro zákazníka", "🔐 Správa"])
 
