@@ -243,46 +243,48 @@ if rezim == "🛒 Objednávka pro zákazníka":
             if not all([jmeno, prijmeni, telefon, email, adresa]):
                 st.warning("⚠️ Prosím, vyplňte všechny kontaktní i doručovací údaje.")
             else:
-                nove_id = 1 if df_orders.empty else int(df_orders["ID"].max()) + 1
-                nova_objednavka = pd.DataFrame([{
-                    "ID": nove_id,
-                    "Datum_Vytvoreni": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    "Jmeno": jmeno,
-                    "Prijmeni": prijmeni,
-                    "Telefon": telefon,
-                    "Email": email,
-                    "Adresa": adresa,
-                    "Poznamka_Kuryr": poznamka,
-                    "Kategorie": kategorie,
-                    "Program": vybrany_program,
-                    "Delka": delka_trvani,
-                    "Datum_Od": datum_od.strftime("%Y-%m-%d"),
-                    "Cena_Celkem": cena_za_jednotku,
-                    "Stav_Platby": "Čeká na platbu"
-                }])
-                
-                df_aktualni = pd.concat([df_orders, nova_objednavka], ignore_index=True)
-                if uloz_objednavky(df_aktualni, current_sha):
-                    st.balloons()
-                    st.success("🎉 Objednávka byla úspěšně přijata! Děkujeme.")
+                # WOW Efekt 2: Animace načítání pro zákazníka
+                with st.spinner('Odesílám objednávku do kuchyně... 👩‍🍳'):
+                    nove_id = 1 if df_orders.empty else int(df_orders["ID"].max()) + 1
+                    nova_objednavka = pd.DataFrame([{
+                        "ID": nove_id,
+                        "Datum_Vytvoreni": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                        "Jmeno": jmeno,
+                        "Prijmeni": prijmeni,
+                        "Telefon": telefon,
+                        "Email": email,
+                        "Adresa": adresa,
+                        "Poznamka_Kuryr": poznamka,
+                        "Kategorie": kategorie,
+                        "Program": vybrany_program,
+                        "Delka": delka_trvani,
+                        "Datum_Od": datum_od.strftime("%Y-%m-%d"),
+                        "Cena_Celkem": cena_za_jednotku,
+                        "Stav_Platby": "Čeká na platbu"
+                    }])
                     
-                    spd_str = f"SPD*1.0*ACC:{BANK_ACCOUNT}/{BANK_CODE}*AM:{cena_za_jednotku:.2f}*CC:CZK*X-VS:{nove_id}*MSG:L-Cecko ID {nove_id}"
-                    qr_img = qrcode.make(spd_str)
-                    buf = BytesIO()
-                    qr_img.save(buf, format="PNG")
-                    
-                    st.markdown("---")
-                    st.markdown("### 💳 Podklady pro platbu převodem")
-                    col_qr, col_info = st.columns([1, 1.5])
-                    with col_qr:
-                        st.image(buf.getvalue(), caption="Naskenujte v banking aplikaci", width=200)
-                    with col_info:
-                        st.write(f"**Číslo účtu:** {BANK_ACCOUNT}/{BANK_CODE}")
-                        st.write(f"**Částka:** {cena_za_jednotku} Kč")
-                        st.write(f"**Variabilní symbol:** {nove_id}")
-                        st.write(f"**Zpráva:** L-Cecko ID {nove_id}")
-                else:
-                    st.error("❌ Chyba při ukládání objednávky. Zkuste to prosím znovu.")
+                    df_aktualni = pd.concat([df_orders, nova_objednavka], ignore_index=True)
+                    if uloz_objednavky(df_aktualni, current_sha):
+                        st.balloons()
+                        st.success("🎉 Objednávka byla úspěšně přijata! Děkujeme.")
+                        
+                        spd_str = f"SPD*1.0*ACC:{BANK_ACCOUNT}/{BANK_CODE}*AM:{cena_za_jednotku:.2f}*CC:CZK*X-VS:{nove_id}*MSG:L-Cecko ID {nove_id}"
+                        qr_img = qrcode.make(spd_str)
+                        buf = BytesIO()
+                        qr_img.save(buf, format="PNG")
+                        
+                        st.markdown("---")
+                        st.markdown("### 💳 Podklady pro platbu převodem")
+                        col_qr, col_info = st.columns([1, 1.5])
+                        with col_qr:
+                            st.image(buf.getvalue(), caption="Naskenujte v banking aplikaci", width=200)
+                        with col_info:
+                            st.write(f"**Číslo účtu:** {BANK_ACCOUNT}/{BANK_CODE}")
+                            st.write(f"**Částka:** {cena_za_jednotku} Kč")
+                            st.write(f"**Variabilní symbol:** {nove_id}")
+                            st.write(f"**Zpráva:** L-Cecko ID {nove_id}")
+                    else:
+                        st.error("❌ Chyba při ukládání objednávky. Zkuste to prosím znovu.")
 
 # ---------------------------------------------------------
 # 2. SPRÁVA PRO MAJITELKU A KUCHYŇ
@@ -292,9 +294,31 @@ else:
     heslo = st.text_input("Zadejte přístupové heslo:", type="password")
     
     if heslo == ADMIN_PASSWORD:
-        st.success("Přístup schválen.")
+        st.success("✅ Přístup schválen.")
         
-        tab1, tab2, tab3 = st.tabs(["📊 Přehled & Správa databáze", "👨‍🍳 Výkaz pro Kuchyň", "🚗 Seznam pro Kurýra"])
+        # WOW Efekt 1: Manažerský Dashboard pro majitelku
+        if not df_orders.empty:
+            st.markdown("### 📈 Finanční přehled")
+            col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+            
+            # Výpočty pro KPI
+            obrat_zaplaceno = df_orders[df_orders['Stav_Platby'] == 'Zaplaceno']['Cena_Celkem'].sum()
+            obrat_ceka = df_orders[df_orders['Stav_Platby'] == 'Čeká na platbu']['Cena_Celkem'].sum()
+            pocet_ceka = len(df_orders[df_orders['Stav_Platby'] == 'Čeká na platbu'])
+            pocet_celkem = len(df_orders)
+            
+            # Formátování čísel (oddělovač tisíců)
+            obrat_zaplaceno_str = f"{obrat_zaplaceno:,.0f} Kč".replace(',', ' ')
+            obrat_ceka_str = f"{obrat_ceka:,.0f} Kč".replace(',', ' ')
+            
+            col_m1.metric("💰 Zaplaceno (Obrat)", obrat_zaplaceno_str)
+            col_m2.metric("⌛ Očekávané platby", obrat_ceka_str)
+            col_m3.metric("⚠️ Nezkontrolované obj.", f"{pocet_ceka} ks")
+            col_m4.metric("📦 Celkem objednávek", f"{pocet_celkem} ks")
+            
+            st.divider()
+        
+        tab1, tab2, tab3 = st.tabs(["📊 Správa databáze", "👨‍🍳 Výkaz pro Kuchyň", "🚗 Seznam pro Kurýra"])
         
         with tab1:
             st.subheader("Kompletní databáze objednávek")
@@ -357,7 +381,6 @@ else:
                 souhrn.columns = ["Stravovací Program", "Počet Porcí"]
                 st.table(souhrn)
                 
-                # Nové tlačítko pro stažení výkazu pro kuchyň
                 excel_kuchyn = vytvor_profi_excel(souhrn, titulek="Vyroba_Kuchyn")
                 st.download_button(
                     label="👨‍🍳 Stáhnout výkaz do Excelu", 
@@ -374,7 +397,6 @@ else:
                 rozvoz_df = df_orders[["Jmeno", "Prijmeni", "Telefon", "Adresa", "Poznamka_Kuryr", "Program", "Stav_Platby"]]
                 st.dataframe(rozvoz_df, use_container_width=True, hide_index=True)
                 
-                # Nové tlačítko pro stažení rozvozového archu pro kurýra
                 excel_kuryr = vytvor_profi_excel(rozvoz_df, titulek="Rozvozy")
                 st.download_button(
                     label="🚗 Stáhnout arch pro kurýra (Excel)", 
