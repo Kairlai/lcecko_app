@@ -204,7 +204,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
             vybrany_program = "Tradiční domácí vánoční cukroví (Mix)"
             delka_trvani = st.selectbox("Balení:", ["0.5 kg", "1.0 kg", "2.0 kg"])
             pocet_jednotek = st.number_input("Počet balení:", min_value=1, max_value=10, value=1)
-            ceník_cukrovi = {"0.5 kg": 490, "1.0 kg": 890, "2.0 kg": 1690}
+            ceník_cukrovi = {"0.5 kg": 490, "1.0 kg": 890, "1690": 1690}
             cena_za_jednotku = ceník_cukrovi[delka_trvani] * pocet_jednotek
 
         datum_od = st.date_input("Požadované datum doručení / od:", value=datetime.today() + timedelta(days=2))
@@ -280,15 +280,23 @@ else:
         with tab1:
             st.subheader("Kompletní databáze objednávek")
             if not df_orders.empty:
-                st.info("💡 Můžete přepsat jakýkoliv údaj, smazat řádek (zaškrtávátko vlevo a koš nahoře vpravo tabulky) a změny uložit.")
+                st.info("💡 Pro smazání objednávky zaškrtněte políčko v prvním sloupci **Smazat 🗑️** a uložte změny.")
                 
-                # Změna z disabled=[...] na num_rows="dynamic", čímž se povolí kompletní úpravy a mazání řádků
+                # Příprava databáze s trvalým sloupcem pro smazání
+                df_editor_input = df_orders.copy()
+                if "Smazat 🗑️" not in df_editor_input.columns:
+                    df_editor_input.insert(0, "Smazat 🗑️", False)
+
                 edited_df = st.data_editor(
-                    df_orders,
+                    df_editor_input,
                     use_container_width=True,
-                    hide_index=False, # Index je zobrazen jako prázdný čtvereček pro výběr k smazání
-                    num_rows="dynamic", # Umožňuje přidávat i mazat celé řádky
+                    hide_index=True,
                     column_config={
+                        "Smazat 🗑️": st.column_config.CheckboxColumn(
+                            "Smazat 🗑️",
+                            help="Zaškrtněte pro trvalé smazání objednávky",
+                            default=False,
+                        ),
                         "Stav_Platby": st.column_config.SelectboxColumn(
                             "Stav Platby",
                             options=["Čeká na platbu", "Zaplaceno", "Stornováno"],
@@ -298,15 +306,20 @@ else:
                 )
                 
                 if st.button("💾 Uložit změny v databázi", type="primary"):
-                    if uloz_objednavky(edited_df, current_sha):
-                        st.success("✅ Všechny úpravy (včetně smazaných řádků) byly úspěšně uloženy!")
+                    # Vyřazení zaškrtnutých řádků ke smazání
+                    df_k_ulozeni = edited_df[edited_df["Smazat 🗑️"] == False].drop(columns=["Smazat 🗑️"])
+                    
+                    if uloz_objednavky(df_k_ulozeni, current_sha):
+                        st.success("✅ Všechny úpravy byly úspěšně uloženy!")
                         st.rerun()
                     else:
                         st.error("❌ Chyba při ukládání změn do databáze.")
                 
                 st.divider()
                 
-                excel_data = vytvor_profi_excel(edited_df)
+                # Export do Excelu bez pomocného sloupce pro smazání
+                export_df = df_editor_input.drop(columns=["Smazat 🗑️"], errors="ignore")
+                excel_data = vytvor_profi_excel(export_df)
                 st.download_button(
                     label="📥 Stáhnout profi tabulku do Excelu", 
                     data=excel_data, 
