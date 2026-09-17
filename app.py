@@ -199,7 +199,7 @@ def vytvor_profi_excel(df, titulek="Objednávky"):
     return output.getvalue()
 
 def detekuj_alergie(text):
-    """PRÉMIE 3: Skenuje poznámky a hledá klíčová slova k alergiím."""
+    """Skenuje poznámky a hledá klíčová slova k alergiím."""
     if pd.isna(text):
         return ""
     text_low = str(text).lower()
@@ -210,7 +210,7 @@ def detekuj_alergie(text):
     return ""
 
 def vygeneruj_html_uctenku(id_obj, jmeno, prijmeni, adresa, telefon, program, delka, datum, cena):
-    """PRÉMIE 1: Generátor krásné účtenky pro zákazníka."""
+    """Generátor krásné účtenky pro zákazníka."""
     html_obsah = f"""
     <!DOCTYPE html>
     <html lang="cs">
@@ -451,13 +451,12 @@ if rezim == "🛒 Objednávka pro zákazníka":
                         spust_gastro_oslavu()
                         st.success("🎉 Objednávka byla úspěšně přijata! Děkujeme.")
                         
-                        # Generování Účtenky ke stažení
                         html_uctenka = vygeneruj_html_uctenku(
                             nove_id, jmeno, prijmeni, adresa_komplet, telefon, 
                             vybrany_program, delka_trvani, datum_od.strftime("%d.%m.%Y"), cena_za_jednotku
                         )
                         st.download_button(
-                            label="📥 Stáhnout shrnutí objednávky (PDF/HTML)", 
+                            label="📥 Stáhnout shrnutí objednávky", 
                             data=html_uctenka, 
                             file_name=f"Objednavka_LCecko_{nove_id}.html", 
                             mime="text/html",
@@ -537,7 +536,6 @@ else:
 
                 df_filtered = df_orders.copy()
                 
-                # Aplikace Detektoru alergií pro přehlednost v adminu
                 df_filtered.insert(1, "⚠️ POZOR", df_filtered["Poznamka_Kuryr"].apply(detekuj_alergie))
                 
                 if search_query:
@@ -611,12 +609,10 @@ else:
                 st.write(f"**Přehled menu k uvaření pro:** {vybrany_den.strftime('%d.%m.%Y')}")
                 
                 if not df_kuchyn.empty:
-                    # 1. Část: Celkový počet
                     souhrn = df_kuchyn["Program"].value_counts().reset_index()
                     souhrn.columns = ["Stravovací Program", "Počet Porcí"]
                     st.table(souhrn)
                     
-                    # 2. Část: Speciální požadavky a alergie
                     st.markdown("#### ⚠️ Zvláštní požadavky a alergie na tento den:")
                     df_kuchyn["Alergie"] = df_kuchyn["Poznamka_Kuryr"].apply(detekuj_alergie)
                     alergici = df_kuchyn[df_kuchyn["Alergie"] != ""]
@@ -639,10 +635,27 @@ else:
                         )
                     
                     with col_kuchyn2:
-                        # Generování štítků
+                        # CHYTRÉ ŠTÍTKY DO KUCHYNĚ (Pouze 1 sloupec, zkrácený název + alergie)
                         stitky_df = df_kuchyn[["Jmeno", "Prijmeni", "Program", "Poznamka_Kuryr"]].copy()
-                        stitky_df["ŠTÍTEK"] = stitky_df.apply(lambda x: f"{x['Jmeno']} {x['Prijmeni']} | {x['Program'].split(' – ')[0]}", axis=1)
-                        excel_stitky = vytvor_profi_excel(stitky_df[["ŠTÍTEK", "Poznamka_Kuryr"]], titulek="Stitky")
+                        
+                        def formatuj_stitek(row):
+                            prog = str(row.get('Program', ''))
+                            if "ženy" in prog.lower(): prog_short = "Ženy"
+                            elif "muže" in prog.lower(): prog_short = "Muži"
+                            elif "low carb" in prog.lower(): prog_short = "Low Carb"
+                            else: prog_short = prog
+                            
+                            stitek = f"{row.get('Jmeno', '')} {row.get('Prijmeni', '')} | {prog_short}"
+                            
+                            poznamka = str(row.get('Poznamka_Kuryr', ''))
+                            if poznamka != "nan" and poznamka.strip():
+                                klicova_slova = ["alerg", "lepek", "bezlep", "laktóz", "laktoz", "ořech", "mlék", "mlek", "česnek", "cibul", "ryb"]
+                                if any(slovo in poznamka.lower() for slovo in klicova_slova):
+                                    stitek += f" | ⚠️ {poznamka}"
+                            return stitek
+
+                        stitky_df["ŠTÍTEK"] = stitky_df.apply(formatuj_stitek, axis=1)
+                        excel_stitky = vytvor_profi_excel(stitky_df[["ŠTÍTEK"]], titulek="Stitky")
                         
                         st.download_button(
                             label="🖨️ Stáhnout štítky na krabičky k tisku", 
