@@ -374,30 +374,78 @@ if rezim == "🛒 Objednávka pro zákazníka":
             cena_za_jednotku = ceny_krabicky[vybrany_program][delka_trvani]
 
         elif kategorie == "Zakázková výroba / Catering":
-            st.markdown("**Vyberte si položky a počet kusů:**")
-            ceny_catering = {
-                "Chlebíček šunkový s okurkou": 38,
-                "Chlebíček hermelínový": 38,
-                "Chlebíček s debrecínkou": 38,
-                "Obložená mísa uzeninová (1 kg)": 690,
-                "Obložená mísa sýrová (1 kg)": 690,
-                "Jednohubky mix (ks)": 16,
-                "Mini dezerty mix (ks)": 28
+            ceny_slane = {
+                "Kanapky": 30,
+                "Chlebíček": 42,
+                "Obložené ruské vejce": 59,
+                "Obložený máslový croissant": 69,
+                "Plněné bagety velké": 149,
+                "Plněná mini bageta": 45,
+                "Topinka s vejci": 35,
+                "Smaženka": 39,
+                "Mini burgery": 69,
+                "Obložený bagel": 89,
+                "Bramborák": 59,
+                "Racio obložený chléb": 69,
+                "Bezlepkové chlebíčky": 69,
+                "Obložené mísy": 890,
+                "Mini rautové řízky (kg)": 799,
+                "Pomazánky mix (kg)": 280,
+                "Vajíčkový salát s rajčaty (kg)": 310,
+                "Zeleninový salát se sýrem (kg)": 260,
+                "Bramborový salát (kg)": 270
+            }
+            
+            ceny_sladke = {
+                "Bábovka celá": 280,
+                "Sladký závin (ks)": 45,
+                "Kynuté koláče": 40,
+                "Strouhaný koláč": 59,
+                "Hraběnčiny řezy": 59,
+                "Koláč s ovocem a drobenkou": 45,
+                "Pavlova": 79,
+                "Palačinka": 29,
+                "Vdolečky": 39,
+                "Řecká svačinka s granolou a ovocem": 79,
+                "Maromka pohár": 89,
+                "Makový bezlepkový dort": 89,
+                "Jahodové řezy bezlepek": 89,
+                "Cupcake": 59,
+                "Mini plněné košíčky": 35,
+                "Bezlepková roláda": 79,
+                "Čokoládový dort": 89,
+                "Lotus pohár": 79,
+                "Jahody se šlehačkou": 69
             }
             
             vybrane_polozky = []
             celkova_cena_catering = 0
             
-            col_cat1, col_cat2 = st.columns(2)
-            for idx, (polozka, cena) in enumerate(ceny_catering.items()):
-                target_col = col_cat1 if idx % 2 == 0 else col_cat2
-                ks = target_col.number_input(f"{polozka} ({cena} Kč/ks)", min_value=0, max_value=200, value=0, key=f"cat_{idx}")
-                if ks > 0:
-                    vybrane_polozky.append(f"{ks}x {polozka}")
-                    celkova_cena_catering += ks * cena
+            tab_slane, tab_sladke = st.tabs(["🥨 Slané občerstvení", "🍰 Sladké občerstvení"])
+            
+            with tab_slane:
+                col_s1, col_s2 = st.columns(2)
+                for idx, (polozka, cena) in enumerate(ceny_slane.items()):
+                    col = col_s1 if idx % 2 == 0 else col_s2
+                    jednotka = "Kč/kg" if "(kg)" in polozka else "Kč/ks"
+                    ks = col.number_input(f"{polozka} ({cena} {jednotka})", min_value=0, max_value=200, value=0, key=f"slane_{idx}")
+                    if ks > 0:
+                        jednotka_str = "kg" if "(kg)" in polozka else "ks"
+                        vybrane_polozky.append(f"{ks}x {polozka}")
+                        celkova_cena_catering += ks * cena
+                        
+            with tab_sladke:
+                col_sl1, col_sl2 = st.columns(2)
+                for idx, (polozka, cena) in enumerate(ceny_sladke.items()):
+                    col = col_sl1 if idx % 2 == 0 else col_sl2
+                    jednotka = "Kč/kg" if "(kg)" in polozka else "Kč/ks"
+                    ks = col.number_input(f"{polozka} ({cena} {jednotka})", min_value=0, max_value=200, value=0, key=f"sladke_{idx}")
+                    if ks > 0:
+                        vybrane_polozky.append(f"{ks}x {polozka}")
+                        celkova_cena_catering += ks * cena
             
             vybrany_program = ", ".join(vybrane_polozky) if vybrane_polozky else "Žádná položka nevybrána"
-            delka_trvani = "Kusový odběr"
+            delka_trvani = "Zakázková výroba"
             cena_za_jednotku = celkova_cena_catering
             
         elif kategorie == "Snídaňové balíčky":
@@ -455,7 +503,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
             if not all([jmeno, prijmeni, telefon, email, ulice, cp, mesto]):
                 st.warning("⚠️ Prosím, vyplňte všechny osobní údaje a celou adresu.")
             elif kategorie == "Zakázková výroba / Catering" and cena_za_jednotku == 0:
-                st.warning("⚠️ Vyberte prosím alespoň 1 kus některého produktu z nabídky cateringu.")
+                st.warning("⚠️ Vyberte prosím alespoň 1 položku ze slaného nebo sladkého občerstvení.")
             else:
                 with st.spinner('Odesílám objednávku do kuchyně... 👩‍🍳'):
                     psc_text = f", {psc}" if psc else ""
