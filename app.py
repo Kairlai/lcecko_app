@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import io
 from io import BytesIO
 import os
+import random
 import pandas as pd
 import qrcode
 import requests
@@ -152,6 +153,35 @@ def vytvor_profi_excel(df, titulek="Objednávky"):
     wb.save(output)
     return output.getvalue()
 
+def spust_gastro_oslavu():
+    """Vlastní animace padajícího jídla přes celou obrazovku"""
+    food_emojis = ['🥗', '🍎', '🥦', '🥕', '🥑', '🥪', '🍗', '🍅', '🥒', '🍳', '🥩', '🍲']
+    html_str = """
+    <style>
+    @keyframes fallAndSpin {
+        0% { top: -10vh; transform: rotate(0deg) scale(1); opacity: 1; }
+        100% { top: 110vh; transform: rotate(360deg) scale(1.2); opacity: 0; }
+    }
+    .food-emoji {
+        position: fixed;
+        z-index: 99999;
+        font-size: 2.5rem;
+        pointer-events: none;
+        animation-name: fallAndSpin;
+        animation-timing-function: linear;
+        animation-fill-mode: forwards;
+    }
+    </style>
+    """
+    for _ in range(40):
+        emoji = random.choice(food_emojis)
+        left = random.uniform(0, 100)
+        delay = random.uniform(0, 1.5)
+        duration = random.uniform(2.5, 4.5)
+        html_str += f'<div class="food-emoji" style="left: {left}vw; animation-duration: {duration}s; animation-delay: {delay}s;">{emoji}</div>'
+        
+    st.markdown(html_str, unsafe_allow_html=True)
+
 df_orders, current_sha = nacti_objednavky()
 
 if os.path.exists(LOGO_PATH):
@@ -243,7 +273,6 @@ if rezim == "🛒 Objednávka pro zákazníka":
             if not all([jmeno, prijmeni, telefon, email, adresa]):
                 st.warning("⚠️ Prosím, vyplňte všechny kontaktní i doručovací údaje.")
             else:
-                # WOW Efekt 2: Animace načítání pro zákazníka
                 with st.spinner('Odesílám objednávku do kuchyně... 👩‍🍳'):
                     nove_id = 1 if df_orders.empty else int(df_orders["ID"].max()) + 1
                     nova_objednavka = pd.DataFrame([{
@@ -265,7 +294,10 @@ if rezim == "🛒 Objednávka pro zákazníka":
                     
                     df_aktualni = pd.concat([df_orders, nova_objednavka], ignore_index=True)
                     if uloz_objednavky(df_aktualni, current_sha):
-                        st.balloons()
+                        
+                        # Zde spouštíme naši vlastní originální animaci jídla!
+                        spust_gastro_oslavu()
+                        
                         st.success("🎉 Objednávka byla úspěšně přijata! Děkujeme.")
                         
                         spd_str = f"SPD*1.0*ACC:{BANK_ACCOUNT}/{BANK_CODE}*AM:{cena_za_jednotku:.2f}*CC:CZK*X-VS:{nove_id}*MSG:L-Cecko ID {nove_id}"
@@ -296,18 +328,15 @@ else:
     if heslo == ADMIN_PASSWORD:
         st.success("✅ Přístup schválen.")
         
-        # WOW Efekt 1: Manažerský Dashboard pro majitelku
         if not df_orders.empty:
             st.markdown("### 📈 Finanční přehled")
             col_m1, col_m2, col_m3, col_m4 = st.columns(4)
             
-            # Výpočty pro KPI
             obrat_zaplaceno = df_orders[df_orders['Stav_Platby'] == 'Zaplaceno']['Cena_Celkem'].sum()
             obrat_ceka = df_orders[df_orders['Stav_Platby'] == 'Čeká na platbu']['Cena_Celkem'].sum()
             pocet_ceka = len(df_orders[df_orders['Stav_Platby'] == 'Čeká na platbu'])
             pocet_celkem = len(df_orders)
             
-            # Formátování čísel (oddělovač tisíců)
             obrat_zaplaceno_str = f"{obrat_zaplaceno:,.0f} Kč".replace(',', ' ')
             obrat_ceka_str = f"{obrat_ceka:,.0f} Kč".replace(',', ' ')
             
