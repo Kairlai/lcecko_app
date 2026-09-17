@@ -606,7 +606,7 @@ st.markdown(
     """
     <hr style="margin-top: 50px; margin-bottom: 10px; border: 0; border-top: 1px solid #d3d3d3;">
     <div style="text-align: center; color: #666666; font-size: 0.85rem; padding-bottom: 20px;">
-        Aplikaci vytvořil Pavel Kouba
+        Aplikaci vytvořil Pavel Kouba®
     </div>
     """,
     unsafe_allow_html=True
