@@ -198,6 +198,79 @@ def vytvor_profi_excel(df, titulek="Objednávky"):
     wb.save(output)
     return output.getvalue()
 
+def detekuj_alergie(text):
+    """PRÉMIE 3: Skenuje poznámky a hledá klíčová slova k alergiím."""
+    if pd.isna(text):
+        return ""
+    text_low = str(text).lower()
+    klicova_slova = ["alerg", "lepek", "bezlep", "laktóz", "laktoz", "ořech", "mlék", "mlek", "česnek", "cibul", "ryb"]
+    for slovo in klicova_slova:
+        if slovo in text_low:
+            return "🚨 ALERGIE/VÝJIMKA!"
+    return ""
+
+def vygeneruj_html_uctenku(id_obj, jmeno, prijmeni, adresa, telefon, program, delka, datum, cena):
+    """PRÉMIE 1: Generátor krásné účtenky pro zákazníka."""
+    html_obsah = f"""
+    <!DOCTYPE html>
+    <html lang="cs">
+    <head>
+    <meta charset="UTF-8">
+    <title>Potvrzení objednávky L-Céčko</title>
+    <style>
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #f9f9f9; }}
+        .uctenka {{ background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 6px solid #4A7833; }}
+        .header {{ text-align: center; border-bottom: 2px dashed #ddd; padding-bottom: 20px; margin-bottom: 20px; }}
+        .header h1 {{ color: #4A7833; margin: 0 0 5px 0; font-size: 28px; }}
+        .header p {{ color: #777; margin: 0; font-size: 14px; }}
+        .section-title {{ font-size: 14px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }}
+        .info-row {{ display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 15px; }}
+        .info-row strong {{ font-weight: 600; }}
+        .total-box {{ background-color: #e6f0e1; padding: 15px; border-radius: 8px; margin-top: 25px; text-align: center; }}
+        .total-box h2 {{ margin: 0; color: #4A7833; font-size: 24px; }}
+        .payment-info {{ margin-top: 25px; font-size: 14px; background: #fff8e1; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; }}
+        .footer {{ text-align: center; margin-top: 30px; font-size: 13px; color: #999; }}
+    </style>
+    </head>
+    <body>
+        <div class="uctenka">
+            <div class="header">
+                <h1>🥗 L-Céčko Plzeň</h1>
+                <p>Potvrzení přijetí objednávky #{id_obj}</p>
+            </div>
+            
+            <div class="section-title">Údaje zákazníka</div>
+            <div class="info-row"><span>Zákazník:</span> <strong>{jmeno} {prijmeni}</strong></div>
+            <div class="info-row"><span>Adresa:</span> <strong>{adresa}</strong></div>
+            <div class="info-row"><span>Telefon:</span> <strong>{telefon}</strong></div>
+            <br>
+            
+            <div class="section-title">Souhrn objednávky</div>
+            <div class="info-row"><span>Program:</span> <strong>{program}</strong></div>
+            <div class="info-row"><span>Varianta:</span> <strong>{delka}</strong></div>
+            <div class="info-row"><span>Start rozvozu:</span> <strong>{datum}</strong></div>
+            
+            <div class="total-box">
+                <span style="font-size: 14px; color: #666; text-transform: uppercase;">Celkem k úhradě</span>
+                <h2>{cena} Kč</h2>
+            </div>
+            
+            <div class="payment-info">
+                <strong>💳 Pokyny k platbě převodem:</strong><br><br>
+                Číslo účtu: <strong>{BANK_ACCOUNT}/{BANK_CODE}</strong><br>
+                Variabilní symbol: <strong>{id_obj}</strong><br>
+                Částka: <strong>{cena} Kč</strong>
+            </div>
+            
+            <div class="footer">
+                Děkujeme, že jste si vybrali L-Céčko!<br>Těšíme se na Vás.
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return html_obsah
+
 def spust_gastro_oslavu():
     food_emojis = ['🥗', '🍎', '🥦', '🥕', '🥑', '🥪', '🍗', '🍅', '🥒', '🍳', '🥩', '🍲']
     html_str = """
@@ -261,7 +334,6 @@ if rezim == "🛒 Objednávka pro zákazníka":
     with col_menu:
         st.subheader("1. Výběr z nabídky")
         
-        # Dynamické zobrazení kategorií podle nastavení administrátora
         moznosti_kategorii = ["Krabičkové diety", "Snídaňové balíčky"]
         if nastaveni_app.get("cukrovi", True):
             moznosti_kategorii.append("Vánoční cukroví")
@@ -336,7 +408,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
         mesto = col_mesto.text_input("Město:", value="Plzeň").strip()
         psc = col_psc.text_input("PSČ (nepovinné):").strip()
         
-        poznamka = st.text_input("Poznámka pro kurýra (zvonek, kód od dveří...):").strip()
+        poznamka = st.text_input("Poznámka pro kurýra (alergie, zvonek, patro...):").strip()
         
         st.divider()
         
@@ -379,6 +451,19 @@ if rezim == "🛒 Objednávka pro zákazníka":
                         spust_gastro_oslavu()
                         st.success("🎉 Objednávka byla úspěšně přijata! Děkujeme.")
                         
+                        # Generování Účtenky ke stažení
+                        html_uctenka = vygeneruj_html_uctenku(
+                            nove_id, jmeno, prijmeni, adresa_komplet, telefon, 
+                            vybrany_program, delka_trvani, datum_od.strftime("%d.%m.%Y"), cena_za_jednotku
+                        )
+                        st.download_button(
+                            label="📥 Stáhnout shrnutí objednávky (PDF/HTML)", 
+                            data=html_uctenka, 
+                            file_name=f"Objednavka_LCecko_{nove_id}.html", 
+                            mime="text/html",
+                            type="secondary"
+                        )
+                        
                         spd_str = f"SPD*1.0*ACC:{BANK_ACCOUNT}/{BANK_CODE}*AM:{cena_za_jednotku:.2f}*CC:CZK*X-VS:{nove_id}*MSG:L-Cecko ID {nove_id}"
                         qr_img = qrcode.make(spd_str)
                         buf = BytesIO()
@@ -402,7 +487,13 @@ if rezim == "🛒 Objednávka pro zákazníka":
 # ---------------------------------------------------------
 else:
     st.markdown("<h1 class='main-header'>🔐 Interní dispečink L-Céčka</h1>", unsafe_allow_html=True)
-    heslo = st.text_input("Zadejte přístupové heslo:", type="password")
+    
+    url_heslo = st.query_params.get("heslo", "")
+    
+    if url_heslo == ADMIN_PASSWORD:
+        heslo = url_heslo
+    else:
+        heslo = st.text_input("Zadejte přístupové heslo:", type="password")
     
     if heslo == ADMIN_PASSWORD:
         st.success("✅ Přístup schválen.")
@@ -426,13 +517,11 @@ else:
             col_m4.metric("📦 Celkem objednávek", f"{pocet_celkem} ks")
             st.divider()
         
-        # Nová 4. záložka s Nastavením
         tab1, tab2, tab3, tab4 = st.tabs(["📊 Správa databáze", "👨‍🍳 Výkaz pro Kuchyň", "🚗 Seznam pro Kurýra", "⚙️ Nastavení nabídky"])
         
         with tab1:
             st.subheader("Kompletní databáze objednávek")
             if not df_orders.empty:
-                # --- FILTRY A VYHLEDÁVÁNÍ ---
                 st.markdown("<div class='filter-box'>", unsafe_allow_html=True)
                 st.markdown("**🔍 Filtrovat objednávky:**")
                 col_f1, col_f2, col_f3 = st.columns(3)
@@ -447,6 +536,9 @@ else:
                 st.markdown("</div>", unsafe_allow_html=True)
 
                 df_filtered = df_orders.copy()
+                
+                # Aplikace Detektoru alergií pro přehlednost v adminu
+                df_filtered.insert(1, "⚠️ POZOR", df_filtered["Poznamka_Kuryr"].apply(detekuj_alergie))
                 
                 if search_query:
                     mask = df_filtered.apply(lambda row: row.astype(str).str.lower().str.contains(search_query).any(), axis=1)
@@ -477,7 +569,8 @@ else:
                             "Stav Platby",
                             options=["Čeká na platbu", "Zaplaceno", "Stornováno"],
                             required=True,
-                        )
+                        ),
+                        "⚠️ POZOR": st.column_config.TextColumn("⚠️ POZOR", disabled=True)
                     }
                 )
                 
@@ -513,22 +606,52 @@ else:
                 vybrany_den = st.date_input("Zobrazit souhrn k datu:", value=datetime.today())
                 
                 df_kuchyn = df_orders[(df_orders["Kategorie"] == "Krabičkové diety") & 
-                                      (df_orders["Datum_Od"] == vybrany_den.strftime("%Y-%m-%d"))]
+                                      (df_orders["Datum_Od"] == vybrany_den.strftime("%Y-%m-%d"))].copy()
                 
                 st.write(f"**Přehled menu k uvaření pro:** {vybrany_den.strftime('%d.%m.%Y')}")
                 
                 if not df_kuchyn.empty:
+                    # 1. Část: Celkový počet
                     souhrn = df_kuchyn["Program"].value_counts().reset_index()
                     souhrn.columns = ["Stravovací Program", "Počet Porcí"]
                     st.table(souhrn)
                     
-                    excel_kuchyn = vytvor_profi_excel(souhrn, titulek="Vyroba_Kuchyn")
-                    st.download_button(
-                        label="👨‍🍳 Stáhnout výkaz do Excelu", 
-                        data=excel_kuchyn, 
-                        file_name=f"kuchyn_vyroba_{vybrany_den.strftime('%d_%m')}.xlsx", 
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
+                    # 2. Část: Speciální požadavky a alergie
+                    st.markdown("#### ⚠️ Zvláštní požadavky a alergie na tento den:")
+                    df_kuchyn["Alergie"] = df_kuchyn["Poznamka_Kuryr"].apply(detekuj_alergie)
+                    alergici = df_kuchyn[df_kuchyn["Alergie"] != ""]
+                    if not alergici.empty:
+                        st.dataframe(alergici[["Jmeno", "Prijmeni", "Program", "Poznamka_Kuryr"]], hide_index=True)
+                    else:
+                        st.success("Dnes nejsou hlášeny žádné speciální požadavky ani alergie.")
+                    
+                    st.divider()
+                    col_kuchyn1, col_kuchyn2 = st.columns(2)
+                    
+                    with col_kuchyn1:
+                        excel_kuchyn = vytvor_profi_excel(souhrn, titulek="Vyroba_Kuchyn")
+                        st.download_button(
+                            label="👨‍🍳 Stáhnout běžný výkaz (Excel)", 
+                            data=excel_kuchyn, 
+                            file_name=f"kuchyn_vyroba_{vybrany_den.strftime('%d_%m')}.xlsx", 
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True
+                        )
+                    
+                    with col_kuchyn2:
+                        # Generování štítků
+                        stitky_df = df_kuchyn[["Jmeno", "Prijmeni", "Program", "Poznamka_Kuryr"]].copy()
+                        stitky_df["ŠTÍTEK"] = stitky_df.apply(lambda x: f"{x['Jmeno']} {x['Prijmeni']} | {x['Program'].split(' – ')[0]}", axis=1)
+                        excel_stitky = vytvor_profi_excel(stitky_df[["ŠTÍTEK", "Poznamka_Kuryr"]], titulek="Stitky")
+                        
+                        st.download_button(
+                            label="🖨️ Stáhnout štítky na krabičky k tisku", 
+                            data=excel_stitky, 
+                            file_name=f"stitky_{vybrany_den.strftime('%d_%m')}.xlsx", 
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            type="primary",
+                            use_container_width=True
+                        )
                 else:
                     st.info(f"Na den {vybrany_den.strftime('%d.%m.%Y')} nejsou naplánované žádné diety.")
             else:
@@ -536,9 +659,28 @@ else:
                 
         with tab3:
             st.subheader("🚗 Rozvozový arch pro kurýra")
+            
+            with st.expander("📱 Přímý odkaz pro kurýra (Bez zadávání hesla)"):
+                st.write("""
+                **Jak to funguje:**
+                Pošlete kurýrovi speciální odkaz níže. Když si ho uloží do telefonu na plochu, aplikace ho **vždy přihlásí automaticky** bez zadávání hesla!
+                """)
+                base_app_url = st.text_input("Vložte sem základní adresu aplikace (např. https://lcecko.streamlit.app):")
+                if base_app_url:
+                    cisty_odkaz = base_app_url.rstrip('/')
+                    tajny_odkaz = f"{cisty_odkaz}/?heslo={ADMIN_PASSWORD}"
+                    st.code(tajny_odkaz, language="text")
+                    
+                    qr_app = qrcode.make(tajny_odkaz)
+                    buf_app = BytesIO()
+                    qr_app.save(buf_app, format="PNG")
+                    st.image(buf_app.getvalue(), width=180, caption="Naskenovat v telefonu pro přímý přístup")
+
+            st.divider()
+
             if not df_orders.empty:
                 vybrany_den_kuryr = st.date_input("Rozvozy na den:", value=datetime.today(), key="kuryr_den")
-                df_kuryr = df_orders[df_orders["Datum_Od"] == vybrany_den_kuryr.strftime("%Y-%m-%d")]
+                df_kuryr = df_orders[df_orders["Datum_Od"] == vybrany_den_kuryr.strftime("%Y-%m-%d")].copy()
                 
                 if not df_kuryr.empty:
                     adresy = df_kuryr["Adresa"].dropna().tolist()
