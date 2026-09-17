@@ -53,7 +53,6 @@ st.markdown("""
         color: white;
     }
     
-    /* Zvýrazněná kartička pro souhrn ceny */
     .summary-card {
         background-color: #e6f0e1;
         padding: 15px;
@@ -112,10 +111,10 @@ def uloz_objednavky(df, sha=None):
     res = requests.put(url, headers=get_headers(), json=payload)
     return res.status_code in [200, 201]
 
-def vytvor_profi_excel(df):
+def vytvor_profi_excel(df, titulek="Objednávky"):
     wb = Workbook()
     ws = wb.active
-    ws.title = "Objednávky"
+    ws.title = titulek
     
     for r in dataframe_to_rows(df, index=False, header=True):
         ws.append(r)
@@ -232,7 +231,6 @@ if rezim == "🛒 Objednávka pro zákazníka":
         
         st.divider()
         
-        # WOW Efekt: Hezká "účtenka" s celkovou částkou před odesláním
         st.markdown(f"""
             <div class='summary-card'>
                 <h4 style='color: #4A7833; margin: 0;'>Vaše objednávka</h4>
@@ -265,10 +263,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
                 
                 df_aktualni = pd.concat([df_orders, nova_objednavka], ignore_index=True)
                 if uloz_objednavky(df_aktualni, current_sha):
-                    
-                    # WOW Efekt: Oslavné balónky létající přes obrazovku po odeslání!
                     st.balloons()
-                    
                     st.success("🎉 Objednávka byla úspěšně přijata! Děkujeme.")
                     
                     spd_str = f"SPD*1.0*ACC:{BANK_ACCOUNT}/{BANK_CODE}*AM:{cena_za_jednotku:.2f}*CC:CZK*X-VS:{nove_id}*MSG:L-Cecko ID {nove_id}"
@@ -340,11 +335,11 @@ else:
                 st.divider()
                 
                 export_df = df_editor_input.drop(columns=["Smazat 🗑️"], errors="ignore")
-                excel_data = vytvor_profi_excel(export_df)
+                excel_data = vytvor_profi_excel(export_df, titulek="Všechny objednávky")
                 st.download_button(
-                    label="📥 Stáhnout profi tabulku do Excelu", 
+                    label="📥 Stáhnout kompletní databázi (Excel)", 
                     data=excel_data, 
-                    file_name=f"lcecko_objednavky_{datetime.now().strftime('%d_%m')}.xlsx", 
+                    file_name=f"lcecko_komplet_{datetime.now().strftime('%d_%m')}.xlsx", 
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
             else:
@@ -355,11 +350,21 @@ else:
             if not df_orders.empty:
                 vybrany_den = st.date_input("Zobrazit souhrn k datu:", value=datetime.today())
                 df_kuchyn = df_orders[df_orders["Kategorie"] == "Krabičkové diety"]
+                
                 st.write(f"**Přehled menu k uvaření pro:** {vybrany_den.strftime('%d.%m.%Y')}")
                 
                 souhrn = df_kuchyn["Program"].value_counts().reset_index()
                 souhrn.columns = ["Stravovací Program", "Počet Porcí"]
                 st.table(souhrn)
+                
+                # Nové tlačítko pro stažení výkazu pro kuchyň
+                excel_kuchyn = vytvor_profi_excel(souhrn, titulek="Vyroba_Kuchyn")
+                st.download_button(
+                    label="👨‍🍳 Stáhnout výkaz do Excelu", 
+                    data=excel_kuchyn, 
+                    file_name=f"kuchyn_vyroba_{vybrany_den.strftime('%d_%m')}.xlsx", 
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
             else:
                 st.info("Zatím žádné objednávky v databázi.")
                 
@@ -368,6 +373,15 @@ else:
             if not df_orders.empty:
                 rozvoz_df = df_orders[["Jmeno", "Prijmeni", "Telefon", "Adresa", "Poznamka_Kuryr", "Program", "Stav_Platby"]]
                 st.dataframe(rozvoz_df, use_container_width=True, hide_index=True)
+                
+                # Nové tlačítko pro stažení rozvozového archu pro kurýra
+                excel_kuryr = vytvor_profi_excel(rozvoz_df, titulek="Rozvozy")
+                st.download_button(
+                    label="🚗 Stáhnout arch pro kurýra (Excel)", 
+                    data=excel_kuryr, 
+                    file_name=f"kuryr_rozvozy_{datetime.now().strftime('%d_%m')}.xlsx", 
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
             else:
                 st.info("Zatím žádné adresy k rozvozu.")
     elif heslo:
