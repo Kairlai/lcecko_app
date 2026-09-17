@@ -103,7 +103,6 @@ def uloz_objednavky(df, sha=None):
     return res.status_code in [200, 201]
 
 def vytvor_profi_excel(df):
-    """Vytvoří naformátovaný Excel soubor z DataFrame a vrátí ho jako bytes."""
     wb = Workbook()
     ws = wb.active
     ws.title = "Objednávky"
@@ -120,13 +119,11 @@ def vytvor_profi_excel(df):
         bottom=Side(style='thin', color='DDDDDD')
     )
     
-    # Stylování hlavičky
     for cell in ws[1]:
         cell.fill = green_fill
         cell.font = white_font
         cell.alignment = Alignment(horizontal='center', vertical='center')
         
-    # Rozšíření sloupců a mřížka
     for col in ws.columns:
         max_length = 0
         col_letter = col[0].column_letter
@@ -278,37 +275,37 @@ else:
     if heslo == ADMIN_PASSWORD:
         st.success("Přístup schválen.")
         
-        tab1, tab2, tab3 = st.tabs(["📊 Přehled & Správa plateb", "👨‍🍳 Výkaz pro Kuchyň", "🚗 Seznam pro Kurýra"])
+        tab1, tab2, tab3 = st.tabs(["📊 Přehled & Správa databáze", "👨‍🍳 Výkaz pro Kuchyň", "🚗 Seznam pro Kurýra"])
         
         with tab1:
             st.subheader("Kompletní databáze objednávek")
             if not df_orders.empty:
-                st.info("💡 Kliknutím ve sloupci **Stav_Platby** můžete změnit stav objednávky a následně změny uložit.")
+                st.info("💡 Můžete přepsat jakýkoliv údaj, smazat řádek (zaškrtávátko vlevo a koš nahoře vpravo tabulky) a změny uložit.")
                 
+                # Změna z disabled=[...] na num_rows="dynamic", čímž se povolí kompletní úpravy a mazání řádků
                 edited_df = st.data_editor(
                     df_orders,
                     use_container_width=True,
-                    hide_index=True,
+                    hide_index=False, # Index je zobrazen jako prázdný čtvereček pro výběr k smazání
+                    num_rows="dynamic", # Umožňuje přidávat i mazat celé řádky
                     column_config={
                         "Stav_Platby": st.column_config.SelectboxColumn(
                             "Stav Platby",
                             options=["Čeká na platbu", "Zaplaceno", "Stornováno"],
                             required=True,
                         )
-                    },
-                    disabled=[col for col in df_orders.columns if col != "Stav_Platby"]
+                    }
                 )
                 
-                if st.button("💾 Uložit změny v platbách", type="primary"):
+                if st.button("💾 Uložit změny v databázi", type="primary"):
                     if uloz_objednavky(edited_df, current_sha):
-                        st.success("✅ Stavy plateb byly úspěšně uloženy!")
+                        st.success("✅ Všechny úpravy (včetně smazaných řádků) byly úspěšně uloženy!")
                         st.rerun()
                     else:
                         st.error("❌ Chyba při ukládání změn do databáze.")
                 
                 st.divider()
                 
-                # Nový export do profesionálního Excelu (.xlsx)
                 excel_data = vytvor_profi_excel(edited_df)
                 st.download_button(
                     label="📥 Stáhnout profi tabulku do Excelu", 
