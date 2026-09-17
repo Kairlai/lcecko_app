@@ -21,17 +21,17 @@ st.set_page_config(page_title="L-Céčko | Objednávkový systém", layout="wide
 # Vizuální styl L-Céčka (Skrytí lišty a úprava formulářových boxů)
 st.markdown("""
     <style>
-    /* Skrytí horní lišty s tlačítky (Share, Edit atd.) a patičky Streamlitu */
+    /* Skrytí horní lišty s tlačítky a patičky Streamlitu */
     header {visibility: hidden;}
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
-    /* Hlavní nadpisy ve vaší zelené barvě */
+    /* Hlavní nadpisy ve zelené barvě */
     h1, h2, h3, .main-header {
         color: #4A7833 !important;
     }
 
-    /* Bílé boxy pro samotný formulář, aby text vynikl na béžovém pozadí */
+    /* Bílé boxy pro samotný formulář */
     div[data-testid="stColumn"] {
         background: #ffffff;
         padding: 20px;
@@ -40,7 +40,7 @@ st.markdown("""
         border-top: 5px solid #4A7833;
     }
     
-    /* Zelené tlačítko pro odeslání */
+    /* Zelená tlačítka */
     div.stButton > button:first-child {
         background-color: #4A7833;
         color: white;
@@ -97,7 +97,7 @@ def uloz_objednavky(df, sha=None):
     df.to_csv(csv_buffer, index=False)
     content_b64 = base64.b64encode(csv_buffer.getvalue().encode("utf-8")).decode("utf-8")
 
-    payload = {"message": "Nova objednavka L-Cecko", "content": content_b64}
+    payload = {"message": "Aktualizace objednavek L-Cecko", "content": content_b64}
     if sha:
         payload["sha"] = sha
     res = requests.put(url, headers=get_headers(), json=payload)
@@ -135,7 +135,6 @@ if rezim == "🛒 Objednávka pro zákazníka":
             ])
             delka_trvani = st.radio("Délka programu:", ["Týdenní program (5 dní)", "Měsíční program (20 dní)"])
             
-            # Reálné ceny L-Céčka
             ceny_krabicky = {
                 "Krabičková strava – redukční program pro ženy (5 000–5 500 kJ)": {
                     "Týdenní program (5 dní)": 1800,
@@ -208,7 +207,6 @@ if rezim == "🛒 Objednávka pro zákazníka":
                 if uloz_objednavky(df_aktualni, current_sha):
                     st.success("🎉 Objednávka byla úspěšně přijata!")
                     
-                    # Generování české QR platby (SPD format)
                     spd_str = f"SPD*1.0*ACC:{BANK_ACCOUNT}/{BANK_CODE}*AM:{cena_za_jednotku:.2f}*CC:CZK*X-VS:{nove_id}*MSG:L-Cecko ID {nove_id}"
                     qr_img = qrcode.make(spd_str)
                     buf = BytesIO()
@@ -237,15 +235,39 @@ else:
     if heslo == ADMIN_PASSWORD:
         st.success("Přístup schválen.")
         
-        tab1, tab2, tab3 = st.tabs(["📊 Přehled objednávek", "👨‍🍳 Výkaz pro Kuchyň", "🚗 Seznam pro Kurýra"])
+        tab1, tab2, tab3 = st.tabs(["📊 Přehled & Správa plateb", "👨‍🍳 Výkaz pro Kuchyň", "🚗 Seznam pro Kurýra"])
         
         with tab1:
             st.subheader("Kompletní databáze objednávek")
-            st.dataframe(df_orders, use_container_width=True, hide_index=True)
-            
             if not df_orders.empty:
-                csv_data = df_orders.to_csv(index=False).encode("utf-8-sig")
+                st.info("💡 Kliknutím ve sloupci **Stav_Platby** můžete změnit stav objednávky a následně změny uložit.")
+                
+                edited_df = st.data_editor(
+                    df_orders,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Stav_Platby": st.column_config.SelectboxColumn(
+                            "Stav Platby",
+                            options=["Čeká na platbu", "Zaplaceno", "Stornováno"],
+                            required=True,
+                        )
+                    },
+                    disabled=[col for col in df_orders.columns if col != "Stav_Platby"]
+                )
+                
+                if st.button("💾 Uložit změny v platbách", type="primary"):
+                    if uloz_objednavky(edited_df, current_sha):
+                        st.success("✅ Stavy plateb byly úspěšně uloženy!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Chyba při ukládání změn do databáze.")
+                
+                st.divider()
+                csv_data = edited_df.to_csv(index=False).encode("utf-8-sig")
                 st.download_button("📥 Stáhnout objednávky do Excelu", data=csv_data, file_name="lcecko_objednavky.csv", mime="text/csv")
+            else:
+                st.info("Zatím žádné objednávky v databázi.")
                 
         with tab2:
             st.subheader("👨‍🍳 Souhrn porcí pro kuchyň")
@@ -263,7 +285,7 @@ else:
         with tab3:
             st.subheader("🚗 Rozvozový arch pro kurýra")
             if not df_orders.empty:
-                rozvoz_df = df_orders[["Jmeno", "Prijmeni", "Telefon", "Adresa", "Poznamka_Kuryr", "Program"]]
+                rozvoz_df = df_orders[["Jmeno", "Prijmeni", "Telefon", "Adresa", "Poznamka_Kuryr", "Program", "Stav_Platby"]]
                 st.dataframe(rozvoz_df, use_container_width=True, hide_index=True)
             else:
                 st.info("Zatím žádné adresy k rozvozu.")
