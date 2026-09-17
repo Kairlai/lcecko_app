@@ -12,7 +12,7 @@ from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils.dataframe import dataframe_to_rows
 
 FILE_PATH = "objednavky_lcecko.csv"
-LOGO_PATH = "logo.jpg"  # Pokud máte soubor s příponou .png, změňte na "logo.png"
+LOGO_PATH = "logo.jpg" 
 BANK_ACCOUNT = "123456789"  # Doplňte číslo účtu L-Céčka
 BANK_CODE = "0800"       # Doplňte kód banky
 
@@ -51,6 +51,15 @@ st.markdown("""
     div.stButton > button:first-child:hover {
         background-color: #385a26;
         color: white;
+    }
+    
+    /* Zvýrazněná kartička pro souhrn ceny */
+    .summary-card {
+        background-color: #e6f0e1;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 5px solid #4A7833;
+        margin-bottom: 20px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -146,7 +155,6 @@ def vytvor_profi_excel(df):
 
 df_orders, current_sha = nacti_objednavky()
 
-# Zobrazení loga v postranní liště
 if os.path.exists(LOGO_PATH):
     st.sidebar.image(LOGO_PATH, width=140)
 
@@ -223,7 +231,15 @@ if rezim == "🛒 Objednávka pro zákazníka":
         poznamka = st.text_input("Poznámka pro kurýra (zvonek, patro...):").strip()
         
         st.divider()
-        st.markdown(f"### **Celková cena: {cena_za_jednotku} Kč**")
+        
+        # WOW Efekt: Hezká "účtenka" s celkovou částkou před odesláním
+        st.markdown(f"""
+            <div class='summary-card'>
+                <h4 style='color: #4A7833; margin: 0;'>Vaše objednávka</h4>
+                <p style='margin: 5px 0 0 0; font-size: 14px;'>{vybrany_program} ({delka_trvani})</p>
+                <h3 style='margin: 10px 0 0 0;'>Celková cena: {cena_za_jednotku} Kč</h3>
+            </div>
+        """, unsafe_allow_html=True)
         
         if st.button("Odeslat a vygenerovat QR platbu", type="primary", use_container_width=True):
             if not all([jmeno, prijmeni, telefon, email, adresa]):
@@ -249,7 +265,11 @@ if rezim == "🛒 Objednávka pro zákazníka":
                 
                 df_aktualni = pd.concat([df_orders, nova_objednavka], ignore_index=True)
                 if uloz_objednavky(df_aktualni, current_sha):
-                    st.success("🎉 Objednávka byla úspěšně přijata!")
+                    
+                    # WOW Efekt: Oslavné balónky létající přes obrazovku po odeslání!
+                    st.balloons()
+                    
+                    st.success("🎉 Objednávka byla úspěšně přijata! Děkujeme.")
                     
                     spd_str = f"SPD*1.0*ACC:{BANK_ACCOUNT}/{BANK_CODE}*AM:{cena_za_jednotku:.2f}*CC:CZK*X-VS:{nove_id}*MSG:L-Cecko ID {nove_id}"
                     qr_img = qrcode.make(spd_str)
@@ -360,7 +380,7 @@ st.markdown(
     """
     <hr style="margin-top: 50px; margin-bottom: 10px; border: 0; border-top: 1px solid #d3d3d3;">
     <div style="text-align: center; color: #666666; font-size: 0.85rem; padding-bottom: 20px;">
-        Aplikaci vytvořil Pavel Kouba®
+        Aplikaci vytvořil Pavel Kouba
     </div>
     """,
     unsafe_allow_html=True
