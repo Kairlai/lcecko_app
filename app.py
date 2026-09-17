@@ -7,6 +7,9 @@ import pandas as pd
 import qrcode
 import requests
 import streamlit as st
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 FILE_PATH = "objednavky_lcecko.csv"
 BANK_ACCOUNT = "123456789"  # Doplňte číslo účtu L-Céčka
@@ -18,20 +21,17 @@ ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "heslo1234")
 
 st.set_page_config(page_title="L-Céčko | Objednávkový systém", layout="wide", page_icon="🥗")
 
-# Vizuální styl L-Céčka (Skrytí lišty a úprava formulářových boxů)
+# Vizuální styl L-Céčka
 st.markdown("""
     <style>
-    /* Skrytí horní lišty s tlačítky a patičky Streamlitu */
     header {visibility: hidden;}
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
-    /* Hlavní nadpisy ve zelené barvě */
     h1, h2, h3, .main-header {
         color: #4A7833 !important;
     }
 
-    /* Bílé boxy pro samotný formulář */
     div[data-testid="stColumn"] {
         background: #ffffff;
         padding: 20px;
@@ -40,7 +40,6 @@ st.markdown("""
         border-top: 5px solid #4A7833;
     }
     
-    /* Zelená tlačítka */
     div.stButton > button:first-child {
         background-color: #4A7833;
         color: white;
@@ -103,6 +102,50 @@ def uloz_objednavky(df, sha=None):
     res = requests.put(url, headers=get_headers(), json=payload)
     return res.status_code in [200, 201]
 
+def vytvor_profi_excel(df):
+    """Vytvoří naformátovaný Excel soubor z DataFrame a vrátí ho jako bytes."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Objednávky"
+    
+    for r in dataframe_to_rows(df, index=False, header=True):
+        ws.append(r)
+        
+    green_fill = PatternFill(start_color="4A7833", end_color="4A7833", fill_type="solid")
+    white_font = Font(color="FFFFFF", bold=True)
+    thin_border = Border(
+        left=Side(style='thin', color='DDDDDD'),
+        right=Side(style='thin', color='DDDDDD'),
+        top=Side(style='thin', color='DDDDDD'),
+        bottom=Side(style='thin', color='DDDDDD')
+    )
+    
+    # Stylování hlavičky
+    for cell in ws[1]:
+        cell.fill = green_fill
+        cell.font = white_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        
+    # Rozšíření sloupců a mřížka
+    for col in ws.columns:
+        max_length = 0
+        col_letter = col[0].column_letter
+        for cell in col:
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical='center')
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        ws.column_dimensions[col_letter].width = (max_length + 2)
+        
+    ws.auto_filter.ref = ws.dimensions
+    
+    output = BytesIO()
+    wb.save(output)
+    return output.getvalue()
+
 df_orders, current_sha = nacti_objednavky()
 
 # Navigace v postranní liště
@@ -164,7 +207,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
             vybrany_program = "Tradiční domácí vánoční cukroví (Mix)"
             delka_trvani = st.selectbox("Balení:", ["0.5 kg", "1.0 kg", "2.0 kg"])
             pocet_jednotek = st.number_input("Počet balení:", min_value=1, max_value=10, value=1)
-            ceník_cukrovi = {"0.5 kg": 490, "1.0 kg": 890, "1690": 1690}
+            ceník_cukrovi = {"0.5 kg": 490, "1.0 kg": 890, "2.0 kg": 1690}
             cena_za_jednotku = ceník_cukrovi[delka_trvani] * pocet_jednotek
 
         datum_od = st.date_input("Požadované datum doručení / od:", value=datetime.today() + timedelta(days=2))
@@ -264,9 +307,15 @@ else:
                         st.error("❌ Chyba při ukládání změn do databáze.")
                 
                 st.divider()
-                # Export se středníkovým oddělovačem (sep=";") pro český Excel
-                csv_data = edited_df.to_csv(sep=";", index=False).encode("utf-8-sig")
-                st.download_button("📥 Stáhnout objednávky do Excelu", data=csv_data, file_name="lcecko_objednavky.csv", mime="text/csv")
+                
+                # Nový export do profesionálního Excelu (.xlsx)
+                excel_data = vytvor_profi_excel(edited_df)
+                st.download_button(
+                    label="📥 Stáhnout profi tabulku do Excelu", 
+                    data=excel_data, 
+                    file_name=f"lcecko_objednavky_{datetime.now().strftime('%d_%m')}.xlsx", 
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
             else:
                 st.info("Zatím žádné objednávky v databázi.")
                 
