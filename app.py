@@ -4,6 +4,7 @@ import io
 from io import BytesIO
 import os
 import random
+import urllib.parse  # Pro tvorbu odkazů na Mapy a WhatsApp
 import pandas as pd
 import qrcode
 import requests
@@ -26,7 +27,6 @@ st.set_page_config(page_title="L-Céčko | Objednávkový systém", layout="wide
 # Vizuální styl L-Céčka
 st.markdown("""
     <style>
-    /* Skryjeme pouze pravé horní menu Streamlitu, ale zachováme šipku pro levý panel */
     #MainMenu {visibility: hidden;}
     [data-testid="stHeaderActionElements"] {visibility: hidden;}
     header {background-color: transparent !important;}
@@ -183,6 +183,23 @@ def spust_gastro_oslavu():
         
     st.markdown(html_str, unsafe_allow_html=True)
 
+def vytvor_whatsapp_odkaz(telefon):
+    """Převede číslo na formát pro WhatsApp a předvyplní zprávu."""
+    tel_cisty = "".join([c for c in str(telefon) if c.isdigit() or c == '+'])
+    if not tel_cisty.startswith('+'):
+        if tel_cisty.startswith('00'):
+            tel_cisty = '+' + tel_cisty[2:]
+        else:
+            # Předpokládáme CZ předvolbu, pokud chybí
+            tel_cisty = '+420' + tel_cisty
+    
+    # Odstraníme + pro vložení do URL
+    tel_cisty_url = tel_cisty.replace('+', '')
+    zprava = "Dobrý den, tady kurýr L-Céčko. Za cca 10 minut jsem u Vás s krabičkami! 🥗"
+    zprava_url = urllib.parse.quote(zprava)
+    return f"https://wa.me/{tel_cisty_url}?text={zprava_url}"
+
+
 df_orders, current_sha = nacti_objednavky()
 
 if os.path.exists(LOGO_PATH):
@@ -196,6 +213,7 @@ rezim = st.sidebar.radio("Navigace:", ["🛒 Objednávka pro zákazníka", "🔐
 # ---------------------------------------------------------
 if rezim == "🛒 Objednávka pro zákazníka":
     st.markdown("<h1 class='main-header'>🥗 Objednávkový formulář L-Céčko</h1>", unsafe_allow_html=True)
+    
     st.write("Vyberte si stravovací program nebo sezónní nabídku a my se postaráme o zbytek.")
     
     col_menu, col_user = st.columns([1.2, 1])
@@ -254,7 +272,6 @@ if rezim == "🛒 Objednávka pro zákazníka":
     with col_user:
         st.subheader("2. Doručovací údaje & Platba")
         
-        # Osobní údaje vedle sebe
         col_jmeno, col_prijmeni = st.columns(2)
         jmeno = col_jmeno.text_input("Jméno:").strip()
         prijmeni = col_prijmeni.text_input("Příjmení:").strip()
@@ -265,12 +282,10 @@ if rezim == "🛒 Objednávka pro zákazníka":
         
         st.markdown("<p style='font-size: 14px; font-weight: bold; margin-bottom: 0;'>Adresa pro kurýra</p>", unsafe_allow_html=True)
         
-        # Ulice a číslo vedle sebe
         col_ulice, col_cp = st.columns([2, 1])
         ulice = col_ulice.text_input("Ulice (případně obec):").strip()
         cp = col_cp.text_input("Číslo popisné:").strip()
         
-        # Město a PSČ vedle sebe (Město předvyplněno)
         col_mesto, col_psc = st.columns([2, 1])
         mesto = col_mesto.text_input("Město:", value="Plzeň").strip()
         psc = col_psc.text_input("PSČ (nepovinné):").strip()
@@ -292,7 +307,6 @@ if rezim == "🛒 Objednávka pro zákazníka":
                 st.warning("⚠️ Prosím, vyplňte všechny osobní údaje a celou adresu.")
             else:
                 with st.spinner('Odesílám objednávku do kuchyně... 👩‍🍳'):
-                    # Spojení políček do jednoho formátu pro Excel a kurýra
                     psc_text = f", {psc}" if psc else ""
                     adresa_komplet = f"{ulice} {cp}, {mesto}{psc_text}"
                     
@@ -304,7 +318,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
                         "Prijmeni": prijmeni,
                         "Telefon": telefon,
                         "Email": email,
-                        "Adresa": adresa_komplet, # Zde vložíme složenou adresu
+                        "Adresa": adresa_komplet,
                         "Poznamka_Kuryr": poznamka,
                         "Kategorie": kategorie,
                         "Program": vybrany_program,
@@ -442,10 +456,40 @@ else:
         with tab3:
             st.subheader("🚗 Rozvozový arch pro kurýra")
             if not df_orders.empty:
-                rozvoz_df = df_orders[["Jmeno", "Prijmeni", "Telefon", "Adresa", "Poznamka_Kuryr", "Program", "Stav_Platby"]]
-                st.dataframe(rozvoz_df, use_container_width=True, hide_index=True)
+                # 1. Chytré tlačítko pro spuštění navigace v Google Mapách
+                adresy = df_orders["Adresa"].dropna().tolist()
+                if adresy:
+                    # Pokud je adres moc, omezíme na prvních 10 (kvůli limitu URL adres u Googlu)
+                    adresy_mapy = adresy[:10] if len(adresy) > 10 else adresy
+                    lomitka_adresy = "/".join([urllib.parse.quote(a) for a in adresy_mapy])
+                    google_maps_url = f"https://www.google.com/maps/dir/{lomitka_adresy}"
+                    
+                    st.markdown(f"""
+                        <a href="{google_maps_url}" target="_blank" style="background-color: #4285F4; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; margin-bottom: 20px; border: 1px solid #357ae8;">
+                            📍 Naplánovat trasu rozvozu v Google Mapách
+                        </a>
+                    """, unsafe_allow_html=True)
+                    if len(adresy) > 10:
+                        st.caption("⚠️ Zobrazená trasa na mapě obsahuje prvních 10 zastávek (limit prohlížeče).")
+
+                # 2. Vylepšená tabulka s přímým proklikem na WhatsApp
+                rozvoz_df = df_orders[["Jmeno", "Prijmeni", "Telefon", "Adresa", "Poznamka_Kuryr", "Program", "Stav_Platby"]].copy()
+                rozvoz_df["Napsat zákazníkovi 💬"] = rozvoz_df["Telefon"].apply(vytvor_whatsapp_odkaz)
                 
-                excel_kuryr = vytvor_profi_excel(rozvoz_df, titulek="Rozvozy")
+                st.data_editor(
+                    rozvoz_df,
+                    use_container_width=True,
+                    hide_index=True,
+                    disabled=True, # Tabulka pro kurýra je jen pro čtení
+                    column_config={
+                        "Napsat zákazníkovi 💬": st.column_config.LinkColumn(
+                            "WhatsApp",
+                            display_text="Otevřít chat 💬"
+                        )
+                    }
+                )
+                
+                excel_kuryr = vytvor_profi_excel(rozvoz_df.drop(columns=["Napsat zákazníkovi 💬"]), titulek="Rozvozy")
                 st.download_button(
                     label="🚗 Stáhnout arch pro kurýra (Excel)", 
                     data=excel_kuryr, 
