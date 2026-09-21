@@ -525,12 +525,17 @@ if rezim == "🛒 Objednávka pro zákazníka":
             ceník_snidani = {"5 dní": 650, "10 dní": 1200, "20 dní": 2200}
             cena_za_jednotku = ceník_snidani[delka_trvani]
 
-        elif kategorie == "Vánoční cukroví":
-            vybrany_program = "Tradiční domácí vánoční cukroví (Mix)"
-            delka_trvani = st.selectbox("Balení:", ["0.5 kg", "1.0 kg", "2.0 kg"])
-            pocet_jednotek = st.number_input("Počet balení:", min_value=1, max_value=10, value=1)
-            ceník_cukrovi = {"0.5 kg": 490, "1.0 kg": 890, "2.0 kg": 1690}
-            cena_za_jednotku = ceník_cukrovi[delka_trvani] * pocet_jednotek
+       elif kategorie == "Vánoční cukroví":
+            vybrany_program = "FIT Cukroví (1 kg)"
+            
+            st.markdown("### 🎄 FIT Cukroví (1 kg)")
+            st.write("Mix tradičních druhů ve zdravější verzi (Vanilkové rohlíčky, Mandlové rohlíčky, Pekanové pracny, Košíčky, Linecké, vosí úly...)")
+            st.info("💡 Pokud máte zájem o bezlepkovou variantu (1 890 Kč / kg), napište nám to prosím do 'Poznámky pro kurýra' v dalším kroku objednávky.")
+            
+            pocet_jednotek = st.number_input("Počet balení (ks):", min_value=1, max_value=20, value=1)
+            
+            cena_za_jednotku = 1400 * pocet_jednotek
+            delka_trvani = "Vánoční cukroví"
 
         datum_od = st.date_input("Požadované datum doručení / od:", value=datetime.today() + timedelta(days=2))
 
