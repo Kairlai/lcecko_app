@@ -83,6 +83,29 @@ st.markdown("""
         border: 1px solid #dee2e6;
         margin-bottom: 20px;
     }
+    
+    /* STYLY PRO BĚŽÍCÍ TITULKY */
+    .marquee-container {
+        width: 100%;
+        overflow: hidden;
+        background-color: #ffeb3b; /* Žluté pozadí pro upoutání pozornosti */
+        color: #333;
+        padding: 8px 0;
+        font-weight: bold;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        white-space: nowrap;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .marquee-content {
+        display: inline-block;
+        padding-left: 100%;
+        animation: marquee 20s linear infinite;
+    }
+    @keyframes marquee {
+        0%   { transform: translate(0, 0); }
+        100% { transform: translate(-100%, 0); }
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -137,7 +160,13 @@ def get_headers():
     }
 
 def nacti_nastaveni():
-    vychozi = {"snidane": True, "cukrovi": True, "zakazkova": True, "min_ks_catering": 1}
+    vychozi = {
+        "snidane": True, 
+        "cukrovi": True, 
+        "zakazkova": True, 
+        "min_ks_catering": 1,
+        "bezici_text": "🎄 Přijímáme objednávky na Vánoční cukroví do 15. prosince! 🎄"
+    }
     if not GITHUB_TOKEN or not GITHUB_REPO:
         if not os.path.exists(SETTINGS_PATH):
             with open(SETTINGS_PATH, "w") as f:
@@ -398,6 +427,16 @@ rezim = st.sidebar.radio("Navigace:", ["🛒 Objednávka pro zákazníka", "🔐
 # 1. ZÁKAZNICKÝ OBJEDNÁVKOVÝ FORMULÁŘ
 # ---------------------------------------------------------
 if rezim == "🛒 Objednávka pro zákazníka":
+    
+    # VYTVOŘENÍ BĚŽÍCÍCH TITULKŮ POKUD JSOU ZADÁNY V NASTAVENÍ
+    bezici_text = nastaveni_app.get("bezici_text", "")
+    if bezici_text.strip():
+        st.markdown(f"""
+            <div class="marquee-container">
+                <div class="marquee-content">{bezici_text}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
     st.markdown("<h1 class='main-header'>🥗 Objednávkový formulář L-Céčko</h1>", unsafe_allow_html=True)
     st.write("Vyberte si stravovací program nebo sezónní nabídku a my se postaráme o zbytek.")
     
@@ -914,6 +953,13 @@ else:
             zobrazovat_cukrovi = st.checkbox("Zobrazovat sekci 'Vánoční cukroví' pro zákazníky", value=nastaveni_app.get("cukrovi", True))
             
             st.divider()
+            st.markdown("### 📢 Běžící titulky na hlavní stránce")
+            nastaveni_titulku = st.text_input(
+                "Text titulků (Pokud necháte prázdné, pruh zmizí):", 
+                value=nastaveni_app.get("bezici_text", "")
+            )
+            
+            st.divider()
             st.markdown("### 📦 Minimální odběr u zakázkové výroby")
             min_ks_setting = st.number_input(
                 "Minimální celkový odběr (součet všech ks/kg):", 
@@ -928,7 +974,8 @@ else:
                     "zakazkova": zobrazovat_zakazkova,
                     "snidane": zobrazovat_snidane,
                     "cukrovi": zobrazovat_cukrovi,
-                    "min_ks_catering": int(min_ks_setting)
+                    "min_ks_catering": int(min_ks_setting),
+                    "bezici_text": nastaveni_titulku
                 }
                 if uloz_nastaveni(nove_nastaveni, sha_nastaveni):
                     st.success("✅ Nastavení nabídky bylo úspěšně uloženo!")
