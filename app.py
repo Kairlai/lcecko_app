@@ -20,7 +20,7 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 FILE_PATH = "objednavky_lcecko.csv"
 SETTINGS_PATH = "nastaveni_lcecko.json"
 LOGO_PATH = "logo.jpg" 
-BANK_ACCOUNT = "123456789"  # Doplňte číslo účtu L-Céčka
+BANK_ACCOUNT = "4610796083"  # Doplňte číslo účtu L-Céčka
 BANK_CODE = "0800"       # Doplňte kód banky
 
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
