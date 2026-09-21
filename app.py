@@ -9,6 +9,9 @@ import pandas as pd
 import qrcode
 import requests
 import json
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import streamlit as st
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
@@ -23,6 +26,13 @@ BANK_CODE = "0800"       # Doplňte kód banky
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 GITHUB_REPO = st.secrets.get("GITHUB_REPO", "")
 ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "heslo1234")
+
+# --- NASTAVENÍ E-MAILU ZE SECRETS ---
+EMAIL_SENDER = st.secrets.get("EMAIL_SENDER", "")
+EMAIL_PASSWORD = st.secrets.get("EMAIL_PASSWORD", "")
+EMAIL_RECEIVER = st.secrets.get("EMAIL_RECEIVER", "")
+SMTP_SERVER = st.secrets.get("SMTP_SERVER", "smtp.centrum.cz")
+SMTP_PORT = st.secrets.get("SMTP_PORT", 465)
 
 st.set_page_config(page_title="L-Céčko | Objednávkový systém", layout="wide", page_icon="🥗")
 
@@ -75,6 +85,49 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+
+def odeslat_email_upozorneni(id_obj, jmeno, prijmeni, adresa, program, delka, datum_od, cena, poznamka):
+    if not EMAIL_SENDER or not EMAIL_PASSWORD or not EMAIL_RECEIVER:
+        return False
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = EMAIL_SENDER
+        msg['To'] = EMAIL_RECEIVER
+        msg['Subject'] = f"🥗 Nová objednávka #{id_obj} - {jmeno} {prijmeni}"
+        
+        body = f"""Dobrý den,
+
+přes objednávkový formulář L-Céčka právě dorazila nová objednávka!
+
+Zákazník: {jmeno} {prijmeni}
+Adresa pro kurýra: {adresa}
+Poznámka pro kurýra / alergie: {poznamka if poznamka else '-'}
+
+Menu / Program: {program}
+Varianta / Délka: {delka}
+Od kdy doručovat: {datum_od}
+Celková cena k úhradě: {cena:,.0f} Kč
+
+Objednávku si můžete detailně zkontrolovat v dispečinku aplikace.
+
+Hezký den,
+Váš systém L-Céčko
+"""
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
+        if SMTP_PORT == 465:
+            server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
+        else:
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+            server.starttls()
+            
+        server.login(EMAIL_SENDER, EMAIL_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Chyba pri odesilani e-mailu: {e}")
+        return False
 
 def get_headers():
     return {
@@ -529,6 +582,9 @@ if rezim == "🛒 Objednávka pro zákazníka":
                     
                     df_aktualni = pd.concat([df_orders, nova_objednavka], ignore_index=True)
                     if uloz_objednavky(df_aktualni, current_sha):
+                        # Zavolání funkce pro odeslání e-mailu
+                        odeslat_email_upozorneni(nove_id, jmeno, prijmeni, adresa_komplet, vybrany_program, delka_trvani, datum_od.strftime("%Y-%m-%d"), cena_za_jednotku, poznamka)
+                        
                         spust_gastro_oslavu()
                         st.success("🎉 Objednávka byla úspěšně přijata! Děkujeme.")
                         
