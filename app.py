@@ -31,8 +31,8 @@ ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "heslo1234")
 EMAIL_SENDER = st.secrets.get("EMAIL_SENDER", "")
 EMAIL_PASSWORD = st.secrets.get("EMAIL_PASSWORD", "")
 EMAIL_RECEIVER = st.secrets.get("EMAIL_RECEIVER", "")
-SMTP_SERVER = st.secrets.get("SMTP_SERVER", "mailout.webnode.com")
-SMTP_PORT = int(st.secrets.get("SMTP_PORT", 465)) # Zajištění, že port je vždy číslo
+SMTP_SERVER = st.secrets.get("SMTP_SERVER", "smtp.centrum.cz")
+SMTP_PORT = int(st.secrets.get("SMTP_PORT", 465))
 
 st.set_page_config(page_title="L-Céčko | Objednávkový systém", layout="wide", page_icon="🥗")
 
@@ -116,7 +116,6 @@ Váš systém L-Céčko
 """
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
-        # Přidán timeout 5 sekund, aby aplikace nezamrzla, pokud Webnode neodpovídá
         if SMTP_PORT == 465:
             server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=5)
         else:
@@ -174,8 +173,8 @@ def uloz_nastaveni(nastaveni_dict, sha=None):
         res = requests.put(url, headers=get_headers(), json=payload, timeout=5)
         return res.status_code in [200, 201]
     except Exception as e:
-         print(f"Chyba při ukládání nastavení na GitHub: {e}")
-         return False
+        print(f"Chyba při ukládání nastavení na GitHub: {e}")
+        return False
 
 def nacti_objednavky():
     default_columns = [
@@ -222,8 +221,8 @@ def uloz_objednavky(df, sha=None):
         res = requests.put(url, headers=get_headers(), json=payload, timeout=5)
         return res.status_code in [200, 201]
     except Exception as e:
-         print(f"Chyba při ukládání objednávek na GitHub: {e}")
-         return False
+        print(f"Chyba při ukládání objednávek na GitHub: {e}")
+        return False
 
 def vytvor_profi_excel(df, titulek="Objednávky"):
     wb = Workbook()
@@ -525,7 +524,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
             ceník_snidani = {"5 dní": 650, "10 dní": 1200, "20 dní": 2200}
             cena_za_jednotku = ceník_snidani[delka_trvani]
 
-       elif kategorie == "Vánoční cukroví":
+        elif kategorie == "Vánoční cukroví":
             vybrany_program = "FIT Cukroví (1 kg)"
             
             st.markdown("### 🎄 FIT Cukroví (1 kg)")
@@ -602,7 +601,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
                     
                     df_aktualni = pd.concat([df_orders, nova_objednavka], ignore_index=True)
                     if uloz_objednavky(df_aktualni, current_sha):
-                        # Zavolání funkce pro odeslání e-mailu - i když selže, objednávka se dokončí
+                        # Zavolání funkce pro odeslání e-mailu
                         email_uspech = odeslat_email_upozorneni(nove_id, jmeno, prijmeni, adresa_komplet, vybrany_program, delka_trvani, datum_od.strftime("%Y-%m-%d"), cena_za_jednotku, poznamka)
                         
                         spust_gastro_oslavu()
