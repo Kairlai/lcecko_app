@@ -88,7 +88,7 @@ st.markdown("""
     .marquee-container {
         width: 100%;
         overflow: hidden;
-        background-color: #ffeb3b; /* Žluté pozadí pro upoutání pozornosti */
+        background-color: #ffeb3b;
         color: #333;
         padding: 8px 0;
         font-weight: bold;
@@ -165,7 +165,7 @@ def nacti_nastaveni():
         "cukrovi": True, 
         "zakazkova": True, 
         "min_ks_catering": 1,
-        "bezici_text": "🎄 Přijímáme objednávky na Vánoční cukroví do 15. prosince! 🎄"
+        "bezici_text": "🎄 Přijímáme objednávky na Vánoční cukroví do 31.10.2026! 🎄 Dotazy / Mimořádné přání: 775 045 554 nebo formulář na www.l-cecko.cz"
     }
     if not GITHUB_TOKEN or not GITHUB_REPO:
         if not os.path.exists(SETTINGS_PATH):
@@ -428,7 +428,19 @@ rezim = st.sidebar.radio("Navigace:", ["🛒 Objednávka pro zákazníka", "🔐
 # ---------------------------------------------------------
 if rezim == "🛒 Objednávka pro zákazníka":
     
-    # VYTVOŘENÍ BĚŽÍCÍCH TITULKŮ POKUD JSOU ZADÁNY V NASTAVENÍ
+    # BEZPEČNÉ VYČIŠTĚNÍ FORMULÁŘE PŘED JEHO VYKRLESLENÍM
+    if st.session_state.get("need_clear_form", False):
+        for k in ["input_jmeno", "input_prijmeni", "input_telefon", "input_email", "input_ulice", "input_cp", "input_psc", "input_poznamka"]:
+            st.session_state[k] = ""
+        st.session_state["input_mesto"] = "Plzeň"
+        for k in list(st.session_state.keys()):
+            if k.startswith("slane_") or k.startswith("sladke_"):
+                st.session_state[k] = 0
+        if "cukrovi_vaha" in st.session_state:
+            st.session_state["cukrovi_vaha"] = 1.0
+        st.session_state["need_clear_form"] = False
+
+    # BĚŽÍCÍ TITULKY
     bezici_text = nastaveni_app.get("bezici_text", "")
     if bezici_text.strip():
         st.markdown(f"""
@@ -709,16 +721,8 @@ if rezim == "🛒 Objednávka pro zákazníka":
                             "cena": cena_za_jednotku
                         }
                         
-                        # VYČIŠTĚNÍ FORMULÁŘE
-                        for k in ["input_jmeno", "input_prijmeni", "input_telefon", "input_email", "input_ulice", "input_cp", "input_psc", "input_poznamka"]:
-                            st.session_state[k] = ""
-                        st.session_state["input_mesto"] = "Plzeň"
-                        
-                        for k in list(st.session_state.keys()):
-                            if k.startswith("slane_") or k.startswith("sladke_"):
-                                st.session_state[k] = 0
-                        if "cukrovi_vaha" in st.session_state:
-                            st.session_state["cukrovi_vaha"] = 1.0
+                        # NASTAVENÍ PŘÍZNAKU PRO BEZPEČNÉ VYČIŠTĚNÍ FORMULÁŘE PŘI PŘÍŠTÍM RERUNU
+                        st.session_state["need_clear_form"] = True
                             
                         st.rerun()
                     else:
