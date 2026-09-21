@@ -137,10 +137,11 @@ def get_headers():
     }
 
 def nacti_nastaveni():
+    vychozi = {"snidane": True, "cukrovi": True, "zakazkova": True, "min_ks_catering": 1}
     if not GITHUB_TOKEN or not GITHUB_REPO:
         if not os.path.exists(SETTINGS_PATH):
             with open(SETTINGS_PATH, "w") as f:
-                json.dump({"snidane": True, "cukrovi": True, "zakazkova": True}, f)
+                json.dump(vychozi, f)
         with open(SETTINGS_PATH, "r") as f:
             return json.load(f), None
 
@@ -151,11 +152,15 @@ def nacti_nastaveni():
             data = res.json()
             sha = data["sha"]
             content_str = base64.b64decode(data["content"]).decode("utf-8")
-            return json.loads(content_str), sha
+            loaded = json.loads(content_str)
+            for k, v in vychozi.items():
+                if k not in loaded:
+                    loaded[k] = v
+            return loaded, sha
     except Exception as e:
         print(f"Chyba při načítání nastavení z GitHubu: {e}")
     
-    return {"snidane": True, "cukrovi": True, "zakazkova": True}, None
+    return vychozi, None
 
 def uloz_nastaveni(nastaveni_dict, sha=None):
     obsah = json.dumps(nastaveni_dict)
@@ -396,6 +401,43 @@ if rezim == "🛒 Objednávka pro zákazníka":
     st.markdown("<h1 class='main-header'>🥗 Objednávkový formulář L-Céčko</h1>", unsafe_allow_html=True)
     st.write("Vyberte si stravovací program nebo sezónní nabídku a my se postaráme o zbytek.")
     
+    # POTVRZENÍ ODESLANÉ OBJEDNÁVKY
+    if "potvrzeni_objednavky" in st.session_state:
+        p = st.session_state["potvrzeni_objednavky"]
+        spust_gastro_oslavu()
+        
+        if p["email_uspech"]:
+            st.success(f"🎉 Objednávka #{p['id']} byla úspěšně přijata! Děkujeme.")
+        else:
+            st.success(f"🎉 Objednávka #{p['id']} byla úspěšně uložena do systému! (Upozornění na e-mail se nepodařilo odeslat).")
+            
+        c_d1, c_d2 = st.columns([1, 1])
+        with c_d1:
+            st.download_button(
+                label="📥 Stáhnout shrnutí objednávky", 
+                data=p["html_uctenka"], 
+                file_name=f"Objednavka_LCecko_{p['id']}.html", 
+                mime="text/html",
+                type="secondary",
+                key="btn_download_success"
+            )
+            
+        st.markdown("### 💳 Podklady pro platbu převodem")
+        col_qr, col_info = st.columns([1, 1.5])
+        with col_qr:
+            st.image(p["qr_bytes"], caption="Naskenujte v banking aplikaci", width=200)
+        with col_info:
+            st.write(f"**Číslo účtu:** {BANK_ACCOUNT}/{BANK_CODE}")
+            st.write(f"**Částka:** {p['cena']} Kč")
+            st.write(f"**Variabilní symbol:** {p['id']}")
+            st.write(f"**Zpráva:** L-Cecko ID {p['id']}")
+            
+        if st.button("❌ Zavřít toto potvrzení", key="btn_close_confirmation"):
+            del st.session_state["potvrzeni_objednavky"]
+            st.rerun()
+            
+        st.divider()
+
     col_menu, col_user = st.columns([1.2, 1])
     
     with col_menu:
@@ -415,6 +457,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
         delka_trvani = ""
         cena_za_jednotku = 0
         pocet_jednotek = 1
+        nedosazene_minimum_polozky = []
         
         if kategorie == "Krabičkové diety":
             vybrany_program = st.selectbox("Výběr programu *", [
@@ -441,6 +484,10 @@ if rezim == "🛒 Objednávka pro zákazníka":
             cena_za_jednotku = ceny_krabicky[vybrany_program][delka_trvani]
 
         elif kategorie == "Zakázková výroba / Catering":
+            min_ks_catering = int(nastaveni_app.get("min_ks_catering", 1))
+            if min_ks_catering > 1:
+                st.info(f"💡 Minimální odběr u jednotlivých položek cateringové výroby je **{min_ks_catering} ks/kg**.")
+
             ceny_slane = {
                 "Kanapky": 30,
                 "Chlebíček": 42,
@@ -497,7 +544,8 @@ if rezim == "🛒 Objednávka pro zákazníka":
                     jednotka = "Kč/kg" if "(kg)" in polozka else "Kč/ks"
                     ks = col.number_input(f"{polozka} ({cena} {jednotka})", min_value=0, max_value=200, value=0, key=f"slane_{idx}")
                     if ks > 0:
-                        jednotka_str = "kg" if "(kg)" in polozka else "ks"
+                        if ks < min_ks_catering:
+                            nedosazene_minimum_polozky.append(f"{polozka} ({ks}/{min_ks_catering} ks)")
                         vybrane_polozky.append(f"{ks}x {polozka}")
                         celkova_cena_catering += ks * cena
                         
@@ -508,6 +556,8 @@ if rezim == "🛒 Objednávka pro zákazníka":
                     jednotka = "Kč/kg" if "(kg)" in polozka else "Kč/ks"
                     ks = col.number_input(f"{polozka} ({cena} {jednotka})", min_value=0, max_value=200, value=0, key=f"sladke_{idx}")
                     if ks > 0:
+                        if ks < min_ks_catering:
+                            nedosazene_minimum_polozky.append(f"{polozka} ({ks}/{min_ks_catering} ks)")
                         vybrane_polozky.append(f"{ks}x {polozka}")
                         celkova_cena_catering += ks * cena
             
@@ -528,7 +578,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
             st.markdown("### 🎄 FIT Cukroví")
             st.write("Mix tradičních druhů ve zdravější verzi (Vanilkové rohlíčky, Mandlové rohlíčky, Pekanové pracny, Košíčky, Linecké, vosí úly...)")
             
-            vaha_kg = st.number_input("Počet kil (kg):", min_value=0.5, max_value=20.0, value=1.0, step=0.5)
+            vaha_kg = st.number_input("Počet kil (kg):", min_value=0.5, max_value=20.0, value=1.0, step=0.5, key="cukrovi_vaha")
             
             vybrany_program = "FIT Cukroví"
             delka_trvani = f"{vaha_kg} kg"
@@ -540,24 +590,24 @@ if rezim == "🛒 Objednávka pro zákazníka":
         st.subheader("2. Doručovací údaje & Platba")
         
         col_jmeno, col_prijmeni = st.columns(2)
-        jmeno = col_jmeno.text_input("Jméno:").strip()
-        prijmeni = col_prijmeni.text_input("Příjmení:").strip()
+        jmeno = col_jmeno.text_input("Jméno *", key="input_jmeno").strip()
+        prijmeni = col_prijmeni.text_input("Příjmení *", key="input_prijmeni").strip()
         
         col_tel, col_email = st.columns(2)
-        telefon = col_tel.text_input("Telefonní číslo:").strip()
-        email = col_email.text_input("E-mail:").strip()
+        telefon = col_tel.text_input("Telefonní číslo *", key="input_telefon").strip()
+        email = col_email.text_input("E-mail *", key="input_email").strip()
         
         st.markdown("<p style='font-size: 14px; font-weight: bold; margin-bottom: 0;'>Adresa pro kurýra</p>", unsafe_allow_html=True)
         
         col_ulice, col_cp = st.columns([2, 1])
-        ulice = col_ulice.text_input("Ulice (případně obec):").strip()
-        cp = col_cp.text_input("Číslo popisné:").strip()
+        ulice = col_ulice.text_input("Ulice (případně obec) *", key="input_ulice").strip()
+        cp = col_cp.text_input("Číslo popisné *", key="input_cp").strip()
         
         col_mesto, col_psc = st.columns([2, 1])
-        mesto = col_mesto.text_input("Město:", value="Plzeň").strip()
-        psc = col_psc.text_input("PSČ (nepovinné):").strip()
+        mesto = col_mesto.text_input("Město *", value="Plzeň", key="input_mesto").strip()
+        psc = col_psc.text_input("PSČ (nepovinné):", key="input_psc").strip()
         
-        poznamka = st.text_input("Poznámka pro kurýra (alergie, zvonek, patro...):").strip()
+        poznamka = st.text_input("Poznámka pro kurýra (alergie, zvonek, patro...):", key="input_poznamka").strip()
         
         st.divider()
         
@@ -574,6 +624,8 @@ if rezim == "🛒 Objednávka pro zákazníka":
                 st.warning("⚠️ Prosím, vyplňte všechny osobní údaje a celou adresu.")
             elif kategorie == "Zakázková výroba / Catering" and cena_za_jednotku == 0:
                 st.warning("⚠️ Vyberte prosím alespoň 1 položku ze slaného nebo sladkého občerstvení.")
+            elif kategorie == "Zakázková výroba / Catering" and nedosazene_minimum_polozky:
+                st.error(f"❌ U některých položek nedosahujete minimálního odběru ({nastaveni_app.get('min_ks_catering', 1)} ks/kg): {', '.join(nedosazene_minimum_polozky)}. Prosím upravte množství.")
             else:
                 with st.spinner('Odesílám objednávku do kuchyně... 👩‍🍳'):
                     psc_text = f", {psc}" if psc else ""
@@ -599,26 +651,11 @@ if rezim == "🛒 Objednávka pro zákazníka":
                     
                     df_aktualni = pd.concat([df_orders, nova_objednavka], ignore_index=True)
                     if uloz_objednavky(df_aktualni, current_sha):
-                        # Zavolání funkce pro odeslání e-mailu
                         email_uspech = odeslat_email_upozorneni(nove_id, jmeno, prijmeni, adresa_komplet, vybrany_program, delka_trvani, datum_od.strftime("%Y-%m-%d"), cena_za_jednotku, poznamka)
-                        
-                        spust_gastro_oslavu()
-                        
-                        if email_uspech:
-                            st.success("🎉 Objednávka byla úspěšně přijata! Děkujeme.")
-                        else:
-                            st.success("🎉 Objednávka byla úspěšně uložena do systému! (Upozornění na e-mail se bohužel nepodařilo odeslat, zkontrolujte nastavení SMTP serveru).")
                         
                         html_uctenka = vygeneruj_html_uctenku(
                             nove_id, jmeno, prijmeni, adresa_komplet, telefon, 
                             vybrany_program, delka_trvani, datum_od.strftime("%d.%m.%Y"), cena_za_jednotku
-                        )
-                        st.download_button(
-                            label="📥 Stáhnout shrnutí objednávky", 
-                            data=html_uctenka, 
-                            file_name=f"Objednavka_LCecko_{nove_id}.html", 
-                            mime="text/html",
-                            type="secondary"
                         )
                         
                         spd_str = f"SPD*1.0*ACC:{BANK_ACCOUNT}/{BANK_CODE}*AM:{cena_za_jednotku:.2f}*CC:CZK*X-VS:{nove_id}*MSG:L-Cecko ID {nove_id}"
@@ -626,16 +663,26 @@ if rezim == "🛒 Objednávka pro zákazníka":
                         buf = BytesIO()
                         qr_img.save(buf, format="PNG")
                         
-                        st.markdown("---")
-                        st.markdown("### 💳 Podklady pro platbu převodem")
-                        col_qr, col_info = st.columns([1, 1.5])
-                        with col_qr:
-                            st.image(buf.getvalue(), caption="Naskenujte v banking aplikaci", width=200)
-                        with col_info:
-                            st.write(f"**Číslo účtu:** {BANK_ACCOUNT}/{BANK_CODE}")
-                            st.write(f"**Částka:** {cena_za_jednotku} Kč")
-                            st.write(f"**Variabilní symbol:** {nove_id}")
-                            st.write(f"**Zpráva:** L-Cecko ID {nove_id}")
+                        st.session_state["potvrzeni_objednavky"] = {
+                            "id": nove_id,
+                            "email_uspech": email_uspech,
+                            "html_uctenka": html_uctenka,
+                            "qr_bytes": buf.getvalue(),
+                            "cena": cena_za_jednotku
+                        }
+                        
+                        # VYČIŠTĚNÍ FORMULÁŘE
+                        for k in ["input_jmeno", "input_prijmeni", "input_telefon", "input_email", "input_ulice", "input_cp", "input_psc", "input_poznamka"]:
+                            st.session_state[k] = ""
+                        st.session_state["input_mesto"] = "Plzeň"
+                        
+                        for k in list(st.session_state.keys()):
+                            if k.startswith("slane_") or k.startswith("sladke_"):
+                                st.session_state[k] = 0
+                        if "cukrovi_vaha" in st.session_state:
+                            st.session_state["cukrovi_vaha"] = 1.0
+                            
+                        st.rerun()
                     else:
                         st.error("❌ Chyba při ukládání objednávky na GitHub. Zkuste to prosím znovu.")
 
@@ -798,7 +845,7 @@ else:
             with st.expander("📱 Přímý odkaz pro kurýra (Bez zadávání hesla)"):
                 st.write("""
                 **Jak to funguje:**
-                Pošlete kurýrovi speciální odkaz níže. Když si ho uloží do telefonu na plochu, aplikace ho **vždy přihlásí automaticky** bez zadávání hesla!
+                Pošlete kurýrovi speciální odkaz níže. Když si ho uloží do telefonu na plochu, aplikaci ho **vždy přihlásí automaticky** bez zadávání hesla!
                 """)
                 base_app_url = st.text_input("Vložte sem základní adresu aplikace (např. https://lcecko.streamlit.app):")
                 if base_app_url:
@@ -861,18 +908,28 @@ else:
                 st.info("Zatím žádné adresy k rozvozu.")
                 
         with tab4:
-            st.subheader("⚙️ Zapínání a vypínání částí nabídky")
-            st.write("Pomocí těchto přepínačů můžete jednoduše skrýt určité sekce z webu pro zákazníky, když je zrovna nenabízíte.")
+            st.subheader("⚙️ Zapínání sekcí a pravidla pro zakázkovou výrobu")
             
             zobrazovat_zakazkova = st.checkbox("Zobrazovat sekci 'Zakázková výroba / Catering' pro zákazníky", value=nastaveni_app.get("zakazkova", True))
             zobrazovat_snidane = st.checkbox("Zobrazovat sekci 'Snídaňové balíčky' pro zákazníky", value=nastaveni_app.get("snidane", True))
             zobrazovat_cukrovi = st.checkbox("Zobrazovat sekci 'Vánoční cukroví' pro zákazníky", value=nastaveni_app.get("cukrovi", True))
             
+            st.divider()
+            st.markdown("### 📦 Minimální odběr u zakázkové výroby")
+            min_ks_setting = st.number_input(
+                "Minimální odběr na položku (ks/kg):", 
+                min_value=1, 
+                max_value=100, 
+                value=int(nastaveni_app.get("min_ks_catering", 1)),
+                help="Pokud zákazník u některé cateringové položky zvolí méně ks, než je toto číslo, formulář ho nepustí dál."
+            )
+            
             if st.button("Uložit nastavení webu", type="primary"):
                 nove_nastaveni = {
                     "zakazkova": zobrazovat_zakazkova,
                     "snidane": zobrazovat_snidane,
-                    "cukrovi": zobrazovat_cukrovi
+                    "cukrovi": zobrazovat_cukrovi,
+                    "min_ks_catering": int(min_ks_setting)
                 }
                 if uloz_nastaveni(nove_nastaveni, sha_nastaveni):
                     st.success("✅ Nastavení nabídky bylo úspěšně uloženo!")
