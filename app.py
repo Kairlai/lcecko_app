@@ -31,8 +31,8 @@ ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", "heslo1234")
 EMAIL_SENDER = st.secrets.get("EMAIL_SENDER", "")
 EMAIL_PASSWORD = st.secrets.get("EMAIL_PASSWORD", "")
 EMAIL_RECEIVER = st.secrets.get("EMAIL_RECEIVER", "")
-SMTP_SERVER = st.secrets.get("SMTP_SERVER", "smtp.centrum.cz")
-SMTP_PORT = st.secrets.get("SMTP_PORT", 465)
+SMTP_SERVER = st.secrets.get("SMTP_SERVER", "mailout.webnode.com")
+SMTP_PORT = int(st.secrets.get("SMTP_PORT", 465)) # Zajištění, že port je vždy číslo
 
 st.set_page_config(page_title="L-Céčko | Objednávkový systém", layout="wide", page_icon="🥗")
 
@@ -88,6 +88,7 @@ st.markdown("""
 
 def odeslat_email_upozorneni(id_obj, jmeno, prijmeni, adresa, program, delka, datum_od, cena, poznamka):
     if not EMAIL_SENDER or not EMAIL_PASSWORD or not EMAIL_RECEIVER:
+        print("E-mailové údaje chybí v konfiguraci.")
         return False
     try:
         msg = MIMEMultipart()
@@ -115,10 +116,11 @@ Váš systém L-Céčko
 """
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
+        # Přidán timeout 5 sekund, aby aplikace nezamrzla, pokud Webnode neodpovídá
         if SMTP_PORT == 465:
-            server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
+            server = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=5)
         else:
-            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=5)
             server.starttls()
             
         server.login(EMAIL_SENDER, EMAIL_PASSWORD)
@@ -143,15 +145,18 @@ def nacti_nastaveni():
         with open(SETTINGS_PATH, "r") as f:
             return json.load(f), None
 
-    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{SETTINGS_PATH}"
-    res = requests.get(url, headers=get_headers())
-    if res.status_code == 200:
-        data = res.json()
-        sha = data["sha"]
-        content_str = base64.b64decode(data["content"]).decode("utf-8")
-        return json.loads(content_str), sha
-    else:
-        return {"snidane": True, "cukrovi": True, "zakazkova": True}, None
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{SETTINGS_PATH}"
+        res = requests.get(url, headers=get_headers(), timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            sha = data["sha"]
+            content_str = base64.b64decode(data["content"]).decode("utf-8")
+            return json.loads(content_str), sha
+    except Exception as e:
+        print(f"Chyba při načítání nastavení z GitHubu: {e}")
+    
+    return {"snidane": True, "cukrovi": True, "zakazkova": True}, None
 
 def uloz_nastaveni(nastaveni_dict, sha=None):
     obsah = json.dumps(nastaveni_dict)
@@ -160,55 +165,65 @@ def uloz_nastaveni(nastaveni_dict, sha=None):
             f.write(obsah)
         return True
 
-    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{SETTINGS_PATH}"
-    content_b64 = base64.b64encode(obsah.encode("utf-8")).decode("utf-8")
-    payload = {"message": "Aktualizace nastavení", "content": content_b64}
-    if sha:
-        payload["sha"] = sha
-    res = requests.put(url, headers=get_headers(), json=payload)
-    return res.status_code in [200, 201]
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{SETTINGS_PATH}"
+        content_b64 = base64.b64encode(obsah.encode("utf-8")).decode("utf-8")
+        payload = {"message": "Aktualizace nastavení", "content": content_b64}
+        if sha:
+            payload["sha"] = sha
+        res = requests.put(url, headers=get_headers(), json=payload, timeout=5)
+        return res.status_code in [200, 201]
+    except Exception as e:
+         print(f"Chyba při ukládání nastavení na GitHub: {e}")
+         return False
 
 def nacti_objednavky():
+    default_columns = [
+        "ID", "Datum_Vytvoreni", "Jmeno", "Prijmeni", "Telefon", "Email", 
+        "Adresa", "Poznamka_Kuryr", "Kategorie", "Program", "Delka", 
+        "Datum_Od", "Cena_Celkem", "Stav_Platby"
+    ]
+    
     if not GITHUB_TOKEN or not GITHUB_REPO:
         if not os.path.exists(FILE_PATH):
-            df_empty = pd.DataFrame(columns=[
-                "ID", "Datum_Vytvoreni", "Jmeno", "Prijmeni", "Telefon", "Email", 
-                "Adresa", "Poznamka_Kuryr", "Kategorie", "Program", "Delka", 
-                "Datum_Od", "Cena_Celkem", "Stav_Platby"
-            ])
+            df_empty = pd.DataFrame(columns=default_columns)
             df_empty.to_csv(FILE_PATH, index=False)
+            return df_empty, None
         return pd.read_csv(FILE_PATH), None
 
-    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{FILE_PATH}"
-    res = requests.get(url, headers=get_headers())
-    if res.status_code == 200:
-        data = res.json()
-        sha = data["sha"]
-        content_str = base64.b64decode(data["content"]).decode("utf-8")
-        return pd.read_csv(io.StringIO(content_str)), sha
-    else:
-        df_empty = pd.DataFrame(columns=[
-            "ID", "Datum_Vytvoreni", "Jmeno", "Prijmeni", "Telefon", "Email", 
-            "Adresa", "Poznamka_Kuryr", "Kategorie", "Program", "Delka", 
-            "Datum_Od", "Cena_Celkem", "Stav_Platby"
-        ])
-        return df_empty, None
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{FILE_PATH}"
+        res = requests.get(url, headers=get_headers(), timeout=5)
+        if res.status_code == 200:
+            data = res.json()
+            sha = data["sha"]
+            content_str = base64.b64decode(data["content"]).decode("utf-8")
+            return pd.read_csv(io.StringIO(content_str)), sha
+    except Exception as e:
+        print(f"Chyba při načítání objednávek z GitHubu: {e}")
+        
+    df_empty = pd.DataFrame(columns=default_columns)
+    return df_empty, None
 
 def uloz_objednavky(df, sha=None):
     if not GITHUB_TOKEN or not GITHUB_REPO:
         df.to_csv(FILE_PATH, index=False)
         return True
 
-    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{FILE_PATH}"
-    csv_buffer = io.StringIO()
-    df.to_csv(csv_buffer, index=False)
-    content_b64 = base64.b64encode(csv_buffer.getvalue().encode("utf-8")).decode("utf-8")
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{FILE_PATH}"
+        csv_buffer = io.StringIO()
+        df.to_csv(csv_buffer, index=False)
+        content_b64 = base64.b64encode(csv_buffer.getvalue().encode("utf-8")).decode("utf-8")
 
-    payload = {"message": "Aktualizace objednavek L-Cecko", "content": content_b64}
-    if sha:
-        payload["sha"] = sha
-    res = requests.put(url, headers=get_headers(), json=payload)
-    return res.status_code in [200, 201]
+        payload = {"message": "Aktualizace objednavek L-Cecko", "content": content_b64}
+        if sha:
+            payload["sha"] = sha
+        res = requests.put(url, headers=get_headers(), json=payload, timeout=5)
+        return res.status_code in [200, 201]
+    except Exception as e:
+         print(f"Chyba při ukládání objednávek na GitHub: {e}")
+         return False
 
 def vytvor_profi_excel(df, titulek="Objednávky"):
     wb = Workbook()
@@ -582,11 +597,15 @@ if rezim == "🛒 Objednávka pro zákazníka":
                     
                     df_aktualni = pd.concat([df_orders, nova_objednavka], ignore_index=True)
                     if uloz_objednavky(df_aktualni, current_sha):
-                        # Zavolání funkce pro odeslání e-mailu
-                        odeslat_email_upozorneni(nove_id, jmeno, prijmeni, adresa_komplet, vybrany_program, delka_trvani, datum_od.strftime("%Y-%m-%d"), cena_za_jednotku, poznamka)
+                        # Zavolání funkce pro odeslání e-mailu - i když selže, objednávka se dokončí
+                        email_uspech = odeslat_email_upozorneni(nove_id, jmeno, prijmeni, adresa_komplet, vybrany_program, delka_trvani, datum_od.strftime("%Y-%m-%d"), cena_za_jednotku, poznamka)
                         
                         spust_gastro_oslavu()
-                        st.success("🎉 Objednávka byla úspěšně přijata! Děkujeme.")
+                        
+                        if email_uspech:
+                            st.success("🎉 Objednávka byla úspěšně přijata! Děkujeme.")
+                        else:
+                            st.success("🎉 Objednávka byla úspěšně uložena do systému! (Upozornění na e-mail se bohužel nepodařilo odeslat, zkontrolujte nastavení SMTP serveru).")
                         
                         html_uctenka = vygeneruj_html_uctenku(
                             nove_id, jmeno, prijmeni, adresa_komplet, telefon, 
@@ -616,7 +635,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
                             st.write(f"**Variabilní symbol:** {nove_id}")
                             st.write(f"**Zpráva:** L-Cecko ID {nove_id}")
                     else:
-                        st.error("❌ Chyba při ukládání objednávky. Zkuste to prosím znovu.")
+                        st.error("❌ Chyba při ukládání objednávky na GitHub. Zkuste to prosím znovu.")
 
 # ---------------------------------------------------------
 # 2. SPRÁVA PRO MAJITELKU A KUCHYŇ
