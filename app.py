@@ -457,7 +457,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
         delka_trvani = ""
         cena_za_jednotku = 0
         pocet_jednotek = 1
-        nedosazene_minimum_polozky = []
+        celkem_ks_catering = 0
         
         if kategorie == "Krabičkové diety":
             vybrany_program = st.selectbox("Výběr programu *", [
@@ -486,7 +486,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
         elif kategorie == "Zakázková výroba / Catering":
             min_ks_catering = int(nastaveni_app.get("min_ks_catering", 1))
             if min_ks_catering > 1:
-                st.info(f"💡 Minimální odběr u jednotlivých položek cateringové výroby je **{min_ks_catering} ks/kg**.")
+                st.info(f"💡 Minimální celkový odběr pro catering je **{min_ks_catering} ks/kg** (můžete libovolně kombinovat různé položky).")
 
             ceny_slane = {
                 "Kanapky": 30,
@@ -544,10 +544,9 @@ if rezim == "🛒 Objednávka pro zákazníka":
                     jednotka = "Kč/kg" if "(kg)" in polozka else "Kč/ks"
                     ks = col.number_input(f"{polozka} ({cena} {jednotka})", min_value=0, max_value=200, value=0, key=f"slane_{idx}")
                     if ks > 0:
-                        if ks < min_ks_catering:
-                            nedosazene_minimum_polozky.append(f"{polozka} ({ks}/{min_ks_catering} ks)")
                         vybrane_polozky.append(f"{ks}x {polozka}")
                         celkova_cena_catering += ks * cena
+                        celkem_ks_catering += ks
                         
             with tab_sladke:
                 col_sl1, col_sl2 = st.columns(2)
@@ -556,10 +555,9 @@ if rezim == "🛒 Objednávka pro zákazníka":
                     jednotka = "Kč/kg" if "(kg)" in polozka else "Kč/ks"
                     ks = col.number_input(f"{polozka} ({cena} {jednotka})", min_value=0, max_value=200, value=0, key=f"sladke_{idx}")
                     if ks > 0:
-                        if ks < min_ks_catering:
-                            nedosazene_minimum_polozky.append(f"{polozka} ({ks}/{min_ks_catering} ks)")
                         vybrane_polozky.append(f"{ks}x {polozka}")
                         celkova_cena_catering += ks * cena
+                        celkem_ks_catering += ks
             
             vybrany_program = ", ".join(vybrane_polozky) if vybrane_polozky else "Žádná položka nevybrána"
             delka_trvani = "Zakázková výroba"
@@ -603,9 +601,9 @@ if rezim == "🛒 Objednávka pro zákazníka":
         ulice = col_ulice.text_input("Ulice (případně obec) *", key="input_ulice").strip()
         cp = col_cp.text_input("Číslo popisné *", key="input_cp").strip()
         
-        col_mesto, col_psc = st.columns([2, 1])
+        col_mesto, col_mesto_psc = st.columns([2, 1])
         mesto = col_mesto.text_input("Město *", value="Plzeň", key="input_mesto").strip()
-        psc = col_psc.text_input("PSČ (nepovinné):", key="input_psc").strip()
+        psc = col_mesto_psc.text_input("PSČ (nepovinné):", key="input_psc").strip()
         
         poznamka = st.text_input("Poznámka pro kurýra (alergie, zvonek, patro...):", key="input_poznamka").strip()
         
@@ -624,8 +622,9 @@ if rezim == "🛒 Objednávka pro zákazníka":
                 st.warning("⚠️ Prosím, vyplňte všechny osobní údaje a celou adresu.")
             elif kategorie == "Zakázková výroba / Catering" and cena_za_jednotku == 0:
                 st.warning("⚠️ Vyberte prosím alespoň 1 položku ze slaného nebo sladkého občerstvení.")
-            elif kategorie == "Zakázková výroba / Catering" and nedosazene_minimum_polozky:
-                st.error(f"❌ U některých položek nedosahujete minimálního odběru ({nastaveni_app.get('min_ks_catering', 1)} ks/kg): {', '.join(nedosazene_minimum_polozky)}. Prosím upravte množství.")
+            elif kategorie == "Zakázková výroba / Catering" and celkem_ks_catering < int(nastaveni_app.get('min_ks_catering', 1)):
+                min_k = int(nastaveni_app.get('min_ks_catering', 1))
+                st.error(f"❌ Minimální celkový odběr pro catering je {min_k} ks/kg (máte vybráno {celkem_ks_catering}). Prosím, přidejte další položky.")
             else:
                 with st.spinner('Odesílám objednávku do kuchyně... 👩‍🍳'):
                     psc_text = f", {psc}" if psc else ""
@@ -917,11 +916,11 @@ else:
             st.divider()
             st.markdown("### 📦 Minimální odběr u zakázkové výroby")
             min_ks_setting = st.number_input(
-                "Minimální odběr na položku (ks/kg):", 
+                "Minimální celkový odběr (součet všech ks/kg):", 
                 min_value=1, 
-                max_value=100, 
+                max_value=1000, 
                 value=int(nastaveni_app.get("min_ks_catering", 1)),
-                help="Pokud zákazník u některé cateringové položky zvolí méně ks, než je toto číslo, formulář ho nepustí dál."
+                help="Zákazník musí v kategorii Zakázková výroba objednat dohromady alespoň tento počet kusů nebo kil. Může kombinovat různé položky."
             )
             
             if st.button("Uložit nastavení webu", type="primary"):
