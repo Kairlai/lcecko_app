@@ -20,8 +20,11 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 FILE_PATH = "objednavky_lcecko.csv"
 SETTINGS_PATH = "nastaveni_lcecko.json"
 LOGO_PATH = "logo.jpg" 
-BANK_ACCOUNT = "4610796083"  # Doplňte číslo účtu L-Céčka
-BANK_CODE = "0800"       # Doplňte kód banky
+
+# --- BANKOVNÍ ÚDAJE L-CÉČKA ---
+BANK_ACCOUNT = "4610796083"
+BANK_CODE = "0800"
+BANK_IBAN = "CZ2208000000004610796083"
 
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 GITHUB_REPO = st.secrets.get("GITHUB_REPO", "")
@@ -359,6 +362,7 @@ def vygeneruj_html_uctenku(id_obj, jmeno, prijmeni, adresa, telefon, program, de
             <div class="payment-info">
                 <strong>💳 Pokyny k platbě převodem:</strong><br><br>
                 Číslo účtu: <strong>{BANK_ACCOUNT}/{BANK_CODE}</strong><br>
+                IBAN: <strong>{BANK_IBAN}</strong><br>
                 Variabilní symbol: <strong>{id_obj}</strong><br>
                 Částka: <strong>{cena} Kč</strong>
             </div>
@@ -479,6 +483,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
             st.image(p["qr_bytes"], caption="Naskenujte v banking aplikaci", width=200)
         with col_info:
             st.write(f"**Číslo účtu:** {BANK_ACCOUNT}/{BANK_CODE}")
+            st.write(f"**IBAN:** {BANK_IBAN}")
             st.write(f"**Částka:** {p['cena']} Kč")
             st.write(f"**Variabilní symbol:** {p['id']}")
             st.write(f"**Zpráva:** L-Cecko ID {p['id']}")
@@ -708,7 +713,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
                             vybrany_program, delka_trvani, datum_od.strftime("%d.%m.%Y"), cena_za_jednotku
                         )
                         
-                        spd_str = f"SPD*1.0*ACC:{BANK_ACCOUNT}/{BANK_CODE}*AM:{cena_za_jednotku:.2f}*CC:CZK*X-VS:{nove_id}*MSG:L-Cecko ID {nove_id}"
+                        spd_str = f"SPD*1.0*ACC:{BANK_IBAN}*AM:{cena_za_jednotku:.2f}*CC:CZK*X-VS:{nove_id}*MSG:L-Cecko ID {nove_id}"
                         qr_img = qrcode.make(spd_str)
                         buf = BytesIO()
                         qr_img.save(buf, format="PNG")
