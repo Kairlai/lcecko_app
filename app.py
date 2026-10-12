@@ -437,7 +437,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
     cena_za_jednotku = 0
     pocet_jednotek = 1
     celkem_ks_catering = 0
-    datum_od = datetime.today() + timedelta(days=2)
+    datum_od = (datetime.today() + timedelta(days=2)).date()
     
     # BEZPEČNÉ VYČIŠTĚNÍ FORMULÁŘE PŘED JEHO VYKRLESLENÍM
     if st.session_state.get("need_clear_form", False):
@@ -541,6 +541,8 @@ if rezim == "🛒 Objednávka pro zákazníka":
             cena_za_jednotku = ceny_krabicky[vybrany_program][delka_trvani]
 
         elif kategorie == "Zakázková výroba / Catering":
+            st.info("🕒 **Upozornění:** Zakázkovou výrobu / catering je nutné objednávat **minimálně 3 dny předem**.")
+            
             min_ks_catering = int(nastaveni_app.get("min_ks_catering", 1))
             if min_ks_catering > 1:
                 st.info(f"💡 Minimální celkový odběr pro catering je **{min_ks_catering} ks/kg** (můžete libovolně kombinovat různé položky).")
@@ -653,7 +655,15 @@ if rezim == "🛒 Objednávka pro zákazníka":
             delka_trvani = f"{vaha_kg} kg"
             cena_za_jednotku = int(1400 * vaha_kg)
 
-        datum_od = st.date_input("Požadované datum doručení / od:", value=datetime.today() + timedelta(days=2))
+        # Výpočet minimálního data doručení (3 dny pro Zakázkovou výrobu, 2 dny pro ostatní)
+        min_dny = 3 if kategorie == "Zakázková výroba / Catering" else 2
+        min_datum = (datetime.today() + timedelta(days=min_dny)).date()
+        
+        datum_od = st.date_input(
+            "Požadované datum doručení / od:", 
+            value=min_datum, 
+            min_value=min_datum
+        )
 
     with col_user:
         st.subheader("2. Doručovací údaje & Platba")
