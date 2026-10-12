@@ -431,7 +431,7 @@ rezim = st.sidebar.radio("Navigace:", ["🛒 Objednávka pro zákazníka", "🔐
 # 1. ZÁKAZNICKÝ OBJEDNÁVKOVÝ FORMULÁŘ
 # ---------------------------------------------------------
 if rezim == "🛒 Objednávka pro zákazníka":
-    # Preddefinování proměnných pro zamezení NameError
+    # Inicializace proměnných pro zamezení NameError
     vybrany_program = ""
     delka_trvani = ""
     cena_za_jednotku = 0
@@ -545,48 +545,61 @@ if rezim == "🛒 Objednávka pro zákazníka":
             if min_ks_catering > 1:
                 st.info(f"💡 Minimální celkový odběr pro catering je **{min_ks_catering} ks/kg** (můžete libovolně kombinovat různé položky).")
             
+            # CENÍK SLANÉHO OBČERSTVENÍ
             ceny_slane = {
                 "Kanapky": 30,
-                "Chlebíček": 42,
-                "Obložené ruské vejce": 59,
-                "Obložený máslový croissant": 69,
-                "Plněné bagety velké": 149,
-                "Plněná mini bageta": 45,
-                "Topinka s vejci": 35,
-                "Smaženka": 39,
-                "Mini burgery": 69,
-                "Obložený bagel": 89,
-                "Bramborák": 59,
-                "Racio obložený chléb": 69,
+                "Obložené chlebíčky": 45,
                 "Bezlepkové chlebíčky": 69,
+                "Obložené vejce": 69,
+                "Obložený máslový croissant (celozrnný)": 85,
+                "Obložené bagety velké (světlá/tmavá)": 189,
+                "Plněná bageta malá": 69,
+                "Mini plněná banketka": 49,
+                "Topinka s vejci a oblohou": 45,
+                "Smaženka": 49,
+                "Mini burger (hovězí / trhané maso)": 85,
+                "Plněná tortila s trhaným masem (klasik/celozrnná)": 95,
+                "Obložený bagel": 89,
+                "Bramborák se slaninou (160g)": 69,
+                "Racio kváskový obložený chléb": 89,
                 "Obložené mísy": 890,
+                "Obložená zeleninová mísa s dipem (kg)": 690,
                 "Mini rautové řízky (kg)": 799,
-                "Pomazánky mix (kg)": 280,
-                "Vajíčkový salát s rajčaty (kg)": 310,
+                "Mini holandské karbanátky s oblohou (kg)": 690,
+                "Roastbeef (kg)": 1050,
+                "Hovězí tatarák - pravá svíčková (kg)": 1350,
+                "Pomazánky mix (kg)": 385,
+                "Vajíčkový salát se sýrem a rajčaty (kg)": 390,
+                "Caesar salát (kg)": 790,
+                "Šopský salát (kg)": 465,
+                "Těstovinový salát s kuřecím masem (kg)": 490,
                 "Zeleninový salát se sýrem (kg)": 260,
                 "Bramborový salát (kg)": 270
             }
             
+            # CENÍK SLADKÉHO OBČERSTVENÍ
             ceny_sladke = {
                 "Bábovka celá": 280,
                 "Sladký závin (ks)": 45,
                 "Kynuté koláče": 40,
-                "Strouhaný koláč": 59,
-                "Hraběnčiny řezy": 59,
+                "Strouhaný koláč": 69,
+                "Hraběnčiny řezy": 69,
                 "Koláč s ovocem a drobenkou": 45,
                 "Pavlova": 79,
-                "Palačinka": 29,
+                "Špaldová palačinka (marmeláda/čokoláda/tvaroh)": 45,
                 "Vdolečky": 39,
-                "Řecká svačinka s granolou a ovocem": 79,
+                "Řecká svačinka s granolou a ovocem": 89,
                 "Maromka pohár": 89,
                 "Makový bezlepkový dort": 89,
                 "Jahodové řezy bezlepek": 89,
-                "Cupcake": 59,
+                "Cupcake": 79,
                 "Mini plněné košíčky": 35,
+                "Piškotová roláda": 59,
                 "Bezlepková roláda": 79,
                 "Čokoládový dort": 89,
                 "Lotus pohár": 79,
-                "Jahody se šlehačkou": 69
+                "Jahody se šlehačkou": 69,
+                "Obložená ovocná mísa (kg)": 690
             }
             
             vybrane_polozky = []
