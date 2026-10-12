@@ -523,18 +523,19 @@ if rezim == "🛒 Objednávka pro zákazníka":
             ])
             delka_trvani = st.radio("Délka programu:", ["Týdenní program (5 dní)", "Měsíční program (20 dní)"])
             
+            # --- ZDE UPRAVTE CENY PRO KRABIČKOVÉ DIETY ---
             ceny_krabicky = {
                 "Krabičková strava – redukční program pro ženy (5 000–5 500 kJ)": {
-                    "Týdenní program (5 dní)": 1800,
-                    "Měsíční program (20 dní)": 7200
+                    "Týdenní program (5 dní)": 1800, # Upravit cenu zde
+                    "Měsíční program (20 dní)": 7200 # Upravit cenu zde
                 },
                 "Krabičková strava – redukční program pro muže (7 000–7 500 kJ)": {
-                    "Týdenní program (5 dní)": 2050,
-                    "Měsíční program (20 dní)": 8200
+                    "Týdenní program (5 dní)": 2050, # Upravit cenu zde
+                    "Měsíční program (20 dní)": 8200 # Upravit cenu zde
                 },
                 "Low Carb": {
-                    "Týdenní program (5 dní)": 2200,
-                    "Měsíční program (20 dní)": 8800
+                    "Týdenní program (5 dní)": 2200, # Upravit cenu zde
+                    "Měsíční program (20 dní)": 8800 # Upravit cenu zde
                 }
             }
             cena_za_jednotku = ceny_krabicky[vybrany_program][delka_trvani]
@@ -543,49 +544,51 @@ if rezim == "🛒 Objednávka pro zákazníka":
             min_ks_catering = int(nastaveni_app.get("min_ks_catering", 1))
             if min_ks_catering > 1:
                 st.info(f"💡 Minimální celkový odběr pro catering je **{min_ks_catering} ks/kg** (můžete libovolně kombinovat různé položky).")
-
+            
+            # --- ZDE UPRAVTE CENY PRO SLANÝ CATERING ---
             ceny_slane = {
-                "Kanapky": 30,
-                "Chlebíček": 42,
-                "Obložené ruské vejce": 59,
-                "Obložený máslový croissant": 69,
-                "Plněné bagety velké": 149,
-                "Plněná mini bageta": 45,
-                "Topinka s vejci": 35,
-                "Smaženka": 39,
-                "Mini burgery": 69,
-                "Obložený bagel": 89,
-                "Bramborák": 59,
-                "Racio obložený chléb": 69,
-                "Bezlepkové chlebíčky": 69,
-                "Obložené mísy": 890,
-                "Mini rautové řízky (kg)": 799,
-                "Pomazánky mix (kg)": 280,
-                "Vajíčkový salát s rajčaty (kg)": 310,
-                "Zeleninový salát se sýrem (kg)": 260,
-                "Bramborový salát (kg)": 270
+                "Kanapky": 30, # Upravit cenu zde
+                "Chlebíček": 42, # Upravit cenu zde
+                "Obložené ruské vejce": 59, # Upravit cenu zde
+                "Obložený máslový croissant": 69, # Upravit cenu zde
+                "Plněné bagety velké": 149, # Upravit cenu zde
+                "Plněná mini bageta": 45, # Upravit cenu zde
+                "Topinka s vejci": 35, # Upravit cenu zde
+                "Smaženka": 39, # Upravit cenu zde
+                "Mini burgery": 69, # Upravit cenu zde
+                "Obložený bagel": 89, # Upravit cenu zde
+                "Bramborák": 59, # Upravit cenu zde
+                "Racio obložený chléb": 69, # Upravit cenu zde
+                "Bezlepkové chlebíčky": 69, # Upravit cenu zde
+                "Obložené mísy": 890, # Upravit cenu zde
+                "Mini rautové řízky (kg)": 799, # Upravit cenu zde
+                "Pomazánky mix (kg)": 280, # Upravit cenu zde
+                "Vajíčkový salát s rajčaty (kg)": 310, # Upravit cenu zde
+                "Zeleninový salát se sýrem (kg)": 260, # Upravit cenu zde
+                "Bramborový salát (kg)": 270 # Upravit cenu zde
             }
             
+            # --- ZDE UPRAVTE CENY PRO SLADKÝ CATERING ---
             ceny_sladke = {
-                "Bábovka celá": 280,
-                "Sladký závin (ks)": 45,
-                "Kynuté koláče": 40,
-                "Strouhaný koláč": 59,
-                "Hraběnčiny řezy": 59,
-                "Koláč s ovocem a drobenkou": 45,
-                "Pavlova": 79,
-                "Palačinka": 29,
-                "Vdolečky": 39,
-                "Řecká svačinka s granolou a ovocem": 79,
-                "Maromka pohár": 89,
-                "Makový bezlepkový dort": 89,
-                "Jahodové řezy bezlepek": 89,
-                "Cupcake": 59,
-                "Mini plněné košíčky": 35,
-                "Bezlepková roláda": 79,
-                "Čokoládový dort": 89,
-                "Lotus pohár": 79,
-                "Jahody se šlehačkou": 69
+                "Bábovka celá": 280, # Upravit cenu zde
+                "Sladký závin (ks)": 45, # Upravit cenu zde
+                "Kynuté koláče": 40, # Upravit cenu zde
+                "Strouhaný koláč": 59, # Upravit cenu zde
+                "Hraběnčiny řezy": 59, # Upravit cenu zde
+                "Koláč s ovocem a drobenkou": 45, # Upravit cenu zde
+                "Pavlova": 79, # Upravit cenu zde
+                "Palačinka": 29, # Upravit cenu zde
+                "Vdolečky": 39, # Upravit cenu zde
+                "Řecká svačinka s granolou a ovocem": 79, # Upravit cenu zde
+                "Maromka pohár": 89, # Upravit cenu zde
+                "Makový bezlepkový dort": 89, # Upravit cenu zde
+                "Jahodové řezy bezlepek": 89, # Upravit cenu zde
+                "Cupcake": 59, # Upravit cenu zde
+                "Mini plněné košíčky": 35, # Upravit cenu zde
+                "Bezlepková roláda": 79, # Upravit cenu zde
+                "Čokoládový dort": 89, # Upravit cenu zde
+                "Lotus pohár": 79, # Upravit cenu zde
+                "Jahody se šlehačkou": 69 # Upravit cenu zde
             }
             
             vybrane_polozky = []
@@ -625,7 +628,9 @@ if rezim == "🛒 Objednávka pro zákazníka":
                 "Gurmán Snídaně (Vajíčka, Sýry, Uzeniny)"
             ])
             delka_trvani = st.select_slider("Délka:", options=["5 dní", "10 dní", "20 dní"])
-            ceník_snidani = {"5 dní": 650, "10 dní": 1200, "20 dní": 2200}
+            
+            # --- ZDE UPRAVTE CENY PRO SNÍDANĚ ---
+            ceník_snidani = {"5 dní": 650, "10 dní": 1200, "20 dní": 2200} # Upravit ceny zde
             cena_za_jednotku = ceník_snidani[delka_trvani]
 
         elif kategorie == "Vánoční cukroví":
@@ -636,7 +641,9 @@ if rezim == "🛒 Objednávka pro zákazníka":
             
             vybrany_program = "FIT Cukroví"
             delka_trvani = f"{vaha_kg} kg"
-            cena_za_jednotku = int(1400 * vaha_kg)
+            
+            # --- ZDE UPRAVTE CENU ZA KG CUKROVÍ ---
+            cena_za_jednotku = int(1400 * vaha_kg) # Upravit cenu za kg (nyní 1400) zde
 
         datum_od = st.date_input("Požadované datum doručení / od:", value=datetime.today() + timedelta(days=2))
 
@@ -736,273 +743,3 @@ if rezim == "🛒 Objednávka pro zákazníka":
 # ---------------------------------------------------------
 # 2. SPRÁVA PRO MAJITELKU A KUCHYŇ
 # ---------------------------------------------------------
-else:
-    st.markdown("<h1 class='main-header'>🔐 Interní dispečink L-Céčka</h1>", unsafe_allow_html=True)
-    
-    url_heslo = st.query_params.get("heslo", "")
-    
-    if url_heslo == ADMIN_PASSWORD:
-        heslo = url_heslo
-    else:
-        heslo = st.text_input("Zadejte přístupové heslo:", type="password")
-    
-    if heslo == ADMIN_PASSWORD:
-        st.success("✅ Přístup schválen.")
-        
-        if not df_orders.empty:
-            st.markdown("### 📈 Finanční přehled")
-            
-            col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-            
-            obrat_zaplaceno = df_orders[df_orders['Stav_Platby'] == 'Zaplaceno']['Cena_Celkem'].sum()
-            obrat_ceka = df_orders[df_orders['Stav_Platby'] == 'Čeká na platbu']['Cena_Celkem'].sum()
-            pocet_ceka = len(df_orders[df_orders['Stav_Platby'] == 'Čeká na platbu'])
-            pocet_celkem = len(df_orders)
-            
-            obrat_zaplaceno_str = f"{obrat_zaplaceno:,.0f} Kč".replace(',', ' ')
-            obrat_ceka_str = f"{obrat_ceka:,.0f} Kč".replace(',', ' ')
-            
-            col_m1.metric("💰 Zaplaceno (Obrat)", obrat_zaplaceno_str)
-            col_m2.metric("⌛ Očekávané platby", obrat_ceka_str)
-            col_m3.metric("⚠️ Nezkontrolované obj.", f"{pocet_ceka} ks")
-            col_m4.metric("📦 Celkem objednávek", f"{pocet_celkem} ks")
-            st.divider()
-        
-        tab1, tab2, tab3, tab4 = st.tabs(["📊 Správa databáze", "👨‍🍳 Výkaz pro Kuchyň", "🚗 Seznam pro Kurýra", "⚙️ Nastavení nabídky"])
-        
-        with tab1:
-            st.subheader("Kompletní databáze objednávek")
-            if not df_orders.empty:
-                st.markdown("<div class='filter-box'>", unsafe_allow_html=True)
-                st.markdown("**🔍 Filtrovat objednávky:**")
-                col_f1, col_f2, col_f3 = st.columns(3)
-                
-                search_query = col_f1.text_input("Hledat (Jméno, Adresa, ID...)", "").lower()
-                
-                dostupne_stavy = list(df_orders['Stav_Platby'].unique())
-                vybrane_stavy = col_f2.multiselect("Stav platby:", dostupne_stavy, default=dostupne_stavy)
-                
-                dostupna_data = sorted(list(df_orders['Datum_Od'].unique()))
-                vybrane_datum = col_f3.selectbox("Datum doručení (Od):", ["Všechna data"] + dostupna_data)
-                st.markdown("</div>", unsafe_allow_html=True)
-
-                df_filtered = df_orders.copy()
-                
-                df_filtered.insert(1, "⚠️ POZOR", df_filtered["Poznamka_Kuryr"].apply(detekuj_alergie))
-                
-                if search_query:
-                    mask = df_filtered.apply(lambda row: row.astype(str).str.lower().str.contains(search_query).any(), axis=1)
-                    df_filtered = df_filtered[mask]
-                
-                if vybrane_stavy:
-                    df_filtered = df_filtered[df_filtered['Stav_Platby'].isin(vybrane_stavy)]
-                    
-                if vybrane_datum != "Všechna data":
-                    df_filtered = df_filtered[df_filtered['Datum_Od'] == vybrane_datum]
-
-                st.info(f"💡 Zobrazeno {len(df_filtered)} objednávek. Pro smazání zaškrtněte políčko **Smazat 🗑️** a uložte změny.")
-                
-                if "Smazat 🗑️" not in df_filtered.columns:
-                    df_filtered.insert(0, "Smazat 🗑️", False)
-
-                edited_df = st.data_editor(
-                    df_filtered,
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        "Smazat 🗑️": st.column_config.CheckboxColumn(
-                            "Smazat 🗑️",
-                            help="Zaškrtněte pro trvalé smazání objednávky",
-                            default=False,
-                        ),
-                        "Stav_Platby": st.column_config.SelectboxColumn(
-                            "Stav Platby",
-                            options=["Čeká na platbu", "Zaplaceno", "Stornováno"],
-                            required=True,
-                        ),
-                        "⚠️ POZOR": st.column_config.TextColumn("⚠️ POZOR", disabled=True)
-                    }
-                )
-                
-                if st.button("💾 Uložit změny", type="primary"):
-                    radky_ke_smazani = edited_df[edited_df["Smazat 🗑️"] == True]["ID"].tolist()
-                    df_aktualni = df_orders[~df_orders["ID"].isin(radky_ke_smazani)].copy()
-                    
-                    for index, row in edited_df[edited_df["Smazat 🗑️"] == False].iterrows():
-                        df_aktualni.loc[df_aktualni["ID"] == row["ID"], "Stav_Platby"] = row["Stav_Platby"]
-                    
-                    if uloz_objednavky(df_aktualni, current_sha):
-                        st.success("✅ Změny byly uloženy!")
-                        st.rerun()
-                    else:
-                        st.error("❌ Chyba při ukládání změn do databáze.")
-                
-                st.divider()
-                
-                export_df = edited_df.drop(columns=["Smazat 🗑️"], errors="ignore")
-                excel_data = vytvor_profi_excel(export_df, titulek="Vyfiltrované objednávky")
-                st.download_button(
-                    label="📥 Stáhnout aktuální zobrazení do Excelu", 
-                    data=excel_data, 
-                    file_name=f"lcecko_export_{datetime.now().strftime('%d_%m')}.xlsx", 
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-            else:
-                st.info("Zatím žádné objednávky v databázi.")
-                
-        with tab2:
-            st.subheader("👨‍🍳 Souhrn porcí pro kuchyň")
-            if not df_orders.empty:
-                vybrany_den = st.date_input("Zobrazit souhrn k datu:", value=datetime.today())
-                
-                df_kuchyn = df_orders[df_orders["Datum_Od"] == vybrany_den.strftime("%Y-%m-%d")].copy()
-                
-                st.write(f"**Přehled menu a výroby pro:** {vybrany_den.strftime('%d.%m.%Y')}")
-                
-                if not df_kuchyn.empty:
-                    souhrn = df_kuchyn["Program"].value_counts().reset_index()
-                    souhrn.columns = ["Stravovací Program / Produkty", "Počet / Ks"]
-                    st.table(souhrn)
-                    
-                    st.markdown("#### ⚠️ Zvláštní požadavky a alergie na tento den:")
-                    df_kuchyn["Alergie"] = df_kuchyn["Poznamka_Kuryr"].apply(detekuj_alergie)
-                    alergici = df_kuchyn[df_kuchyn["Alergie"] != ""]
-                    if not alergici.empty:
-                        st.dataframe(alergici[["Jmeno", "Prijmeni", "Program", "Poznamka_Kuryr"]], hide_index=True)
-                    else:
-                        st.success("Dnes nejsou hlášeny žádné speciální požadavky ani alergie.")
-                    
-                    st.divider()
-                    
-                    excel_kuchyn = vytvor_profi_excel(souhrn, titulek="Vyroba_Kuchyn")
-                    st.download_button(
-                        label="👨‍🍳 Stáhnout běžný výkaz (Excel)", 
-                        data=excel_kuchyn, 
-                        file_name=f"kuchyn_vyroba_{vybrany_den.strftime('%d_%m')}.xlsx", 
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    )
-                else:
-                    st.info(f"Na den {vybrany_den.strftime('%d.%m.%Y')} nejsou naplánované žádné objednávky.")
-            else:
-                st.info("Zatím žádné objednávky v databázi.")
-                
-        with tab3:
-            st.subheader("🚗 Rozvozový arch pro kurýra")
-            
-            with st.expander("📱 Přímý odkaz pro kurýra (Bez zadávání hesla)"):
-                st.write("""
-                **Jak to funguje:**
-                Pošlete kurýrovi speciální odkaz níže. Když si ho uloží do telefonu na plochu, aplikaci ho **vždy přihlásí automaticky** bez zadávání hesla!
-                """)
-                base_app_url = st.text_input("Vložte sem základní adresu aplikace (např. https://lcecko.streamlit.app):")
-                if base_app_url:
-                    cisty_odkaz = base_app_url.rstrip('/')
-                    tajny_odkaz = f"{cisty_odkaz}/?heslo={ADMIN_PASSWORD}"
-                    st.code(tajny_odkaz, language="text")
-                    
-                    qr_app = qrcode.make(tajny_odkaz)
-                    buf_app = BytesIO()
-                    qr_app.save(buf_app, format="PNG")
-                    st.image(buf_app.getvalue(), width=180, caption="Naskenovat v telefonu pro přímý přístup")
-
-            st.divider()
-
-            if not df_orders.empty:
-                vybrany_den_kuryr = st.date_input("Rozvozy na den:", value=datetime.today(), key="kuryr_den")
-                df_kuryr = df_orders[df_orders["Datum_Od"] == vybrany_den_kuryr.strftime("%Y-%m-%d")].copy()
-                
-                if not df_kuryr.empty:
-                    adresy = df_kuryr["Adresa"].dropna().tolist()
-                    if adresy:
-                        adresy_mapy = adresy[:10] if len(adresy) > 10 else adresy
-                        lomitka_adresy = "/".join([urllib.parse.quote(a) for a in adresy_mapy])
-                        google_maps_url = f"https://www.google.com/maps/dir/{lomitka_adresy}"
-                        
-                        st.markdown(f"""
-                            <a href="{google_maps_url}" target="_blank" style="background-color: #4285F4; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; margin-bottom: 20px; border: 1px solid #357ae8;">
-                                📍 Naplánovat trasu na dnešek v Google Mapách
-                            </a>
-                        """, unsafe_allow_html=True)
-                        if len(adresy) > 10:
-                            st.caption("⚠️ Zobrazená trasa na mapě obsahuje prvních 10 zastávek (limit prohlížeče).")
-
-                    rozvoz_df = df_kuryr[["Jmeno", "Prijmeni", "Telefon", "Adresa", "Poznamka_Kuryr", "Program", "Stav_Platby"]].copy()
-                    rozvoz_df["Napsat zákazníkovi 💬"] = rozvoz_df["Telefon"].apply(vytvor_whatsapp_odkaz)
-                    
-                    st.data_editor(
-                        rozvoz_df,
-                        use_container_width=True,
-                        hide_index=True,
-                        disabled=True,
-                        column_config={
-                            "Napsat zákazníkovi 💬": st.column_config.LinkColumn(
-                                "WhatsApp",
-                                display_text="Otevřít chat 💬"
-                            )
-                        }
-                    )
-                    
-                    excel_kuryr = vytvor_profi_excel(rozvoz_df.drop(columns=["Napsat zákazníkovi 💬"]), titulek="Rozvozy")
-                    st.download_button(
-                        label="🚗 Stáhnout arch pro kurýra (Excel)", 
-                        data=excel_kuryr, 
-                        file_name=f"kuryr_rozvozy_{vybrany_den_kuryr.strftime('%d_%m')}.xlsx", 
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-                else:
-                    st.info(f"Na den {vybrany_den_kuryr.strftime('%d.%m.%Y')} nejsou žádné rozvozy.")
-            else:
-                st.info("Zatím žádné adresy k rozvozu.")
-                
-        with tab4:
-            st.subheader("⚙️ Zapínání sekcí a pravidla pro zakázkovou výrobu")
-            
-            zobrazovat_zakazkova = st.checkbox("Zobrazovat sekci 'Zakázková výroba / Catering' pro zákazníky", value=nastaveni_app.get("zakazkova", True))
-            zobrazovat_snidane = st.checkbox("Zobrazovat sekci 'Snídaňové balíčky' pro zákazníky", value=nastaveni_app.get("snidane", True))
-            zobrazovat_cukrovi = st.checkbox("Zobrazovat sekci 'Vánoční cukroví' pro zákazníky", value=nastaveni_app.get("cukrovi", True))
-            
-            st.divider()
-            st.markdown("### 📢 Běžící titulky na hlavní stránce")
-            nastaveni_titulku = st.text_input(
-                "Text titulků (Pokud necháte prázdné, pruh zmizí):", 
-                value=nastaveni_app.get("bezici_text", "")
-            )
-            
-            st.divider()
-            st.markdown("### 📦 Minimální odběr u zakázkové výroby")
-            min_ks_setting = st.number_input(
-                "Minimální celkový odběr (součet všech ks/kg):", 
-                min_value=1, 
-                max_value=1000, 
-                value=int(nastaveni_app.get("min_ks_catering", 1)),
-                help="Zákazník musí v kategorii Zakázková výroba objednat dohromady alespoň tento počet kusů nebo kil. Může kombinovat různé položky."
-            )
-            
-            if st.button("Uložit nastavení webu", type="primary"):
-                nove_nastaveni = {
-                    "zakazkova": zobrazovat_zakazkova,
-                    "snidane": zobrazovat_snidane,
-                    "cukrovi": zobrazovat_cukrovi,
-                    "min_ks_catering": int(min_ks_setting),
-                    "bezici_text": nastaveni_titulku
-                }
-                if uloz_nastaveni(nove_nastaveni, sha_nastaveni):
-                    st.success("✅ Nastavení nabídky bylo úspěšně uloženo!")
-                    st.rerun()
-                else:
-                    st.error("❌ Při ukládání došlo k chybě.")
-    elif heslo:
-        st.error("❌ Nesprávné heslo.")
-
-# ---------------------------------------------------------
-# PATIČKA APLIKACE
-# ---------------------------------------------------------
-st.markdown(
-    """
-    <hr style="margin-top: 50px; margin-bottom: 10px; border: 0; border-top: 1px solid #d3d3d3;">
-    <div style="text-align: center; color: #666666; font-size: 0.85rem; padding-bottom: 20px;">
-        Aplikaci vytvořil Pavel Kouba®
-    </div>
-    """,
-    unsafe_allow_html=True
-)
