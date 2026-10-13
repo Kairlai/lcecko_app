@@ -2,9 +2,8 @@ name: Keep Streamlit Alive
 
 on:
   schedule:
-    # Spouští se automaticky každých 6 hodin
-    - cron: '0 */6 * * *'
-  workflow_dispatch: # Umožňuje spustit testovací "ping" i ručně
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
 
 jobs:
   ping:
@@ -12,4 +11,4 @@ jobs:
     steps:
       - name: Ping Streamlit App
         run: |
-          curl -s https://lceckoapp-frs3fyslxu6w44nfvhcwls.streamlit.app/ > /dev/null
+          curl -sS https://lcecko.streamlit.app/ > /dev/null
