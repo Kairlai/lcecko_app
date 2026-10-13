@@ -11,4 +11,4 @@ jobs:
     steps:
       - name: Ping Streamlit App
         run: |
-          curl -sS https://lcecko.streamlit.app/ > /dev/null
+          curl -sS https://lceckoapp-frs3fyslxu6w44nfvhcwls.streamlit.app// > /dev/null
