@@ -1,0 +1,15 @@
+name: Keep Streamlit Alive
+
+on:
+  schedule:
+    # Spouští se každých 6 hodin
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping web
+        run: |
+          curl -s https://VASE_STREAMLIT_ADRESA.streamlit.app > /dev/null
