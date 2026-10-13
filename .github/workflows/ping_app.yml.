@@ -2,8 +2,7 @@ name: Keep Streamlit Alive
 
 on:
   schedule:
-    # Spouští se každých 6 hodin
-    - cron: '0 */6 * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:
