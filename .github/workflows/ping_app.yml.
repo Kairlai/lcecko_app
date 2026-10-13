@@ -12,4 +12,4 @@ jobs:
     steps:
       - name: Ping web
         run: |
-          curl -s https://VASE_STREAMLIT_ADRESA.streamlit.app > /dev/null
+          curl -s https://lceckoapp-frs3fyslxu6w44nfvhcwls.streamlit.app > /dev/null
