@@ -2,13 +2,59 @@ name: Keep Streamlit Alive
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    # Běží každých 30 minut
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 jobs:
-  ping:
+  wake-up:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Streamlit App
+      - name: Nastavení Pythonu
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalace Playwrightu
         run: |
-          curl -sS https://lceckoapp-frs3fyslxu6w44nfvhcwls.streamlit.app/ > /dev/null
+          pip install playwright
+          playwright install --with-deps chromium
+
+      - name: Otevření a probuzení aplikací
+        run: |
+          python - << 'EOF'
+          from playwright.sync_api import sync_playwright
+          import time
+
+          APLIKACE = [
+              "https://deni-candle-b2b-qhqgra6wlxvpjppoabgjbv.streamlit.app/",
+              "https://lceckoapp-frs3fyslxu6w44nfvhcwls.streamlit.app/",
+              "https://rezervace-dummy-mjlbdswxmmtrsrmg4tfghs.streamlit.app/",
+              "https://slevomat-rvzdnpiu5mddwmgdctljta.streamlit.app/"
+          ]
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+              page = context.new_page()
+
+              for url in APLIKACE:
+                  print(f"Kontroluji: {url}")
+                  try:
+                      page.goto(url, timeout=60000, wait_until="domcontentloaded")
+                      time.sleep(8)
+
+                      # Hledání tlačítka pro probuzení
+                      wake_btn = page.locator('button:has-text("Yes, get this app back up")')
+                      if wake_btn.count() > 0 and wake_btn.first.is_visible():
+                          print("⚠️ Aplikace spí! Klikám na tlačítko probuzení...")
+                          wake_btn.first.click()
+                          time.sleep(15)
+                          print("✅ Probuzení potvrzeno.")
+                      else:
+                          print("✅ Aplikace je plně aktivní.")
+                  except Exception as e:
+                      print(f"Chyba při přístupu na {url}: {e}")
+
+              browser.close()
+          EOF
