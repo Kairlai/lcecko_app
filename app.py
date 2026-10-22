@@ -2,24 +2,25 @@ import base64
 from datetime import datetime, timedelta
 import io
 from io import BytesIO
+import json
 import os
 import random
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import urllib.parse
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils.dataframe import dataframe_to_rows
 import pandas as pd
 import qrcode
 import requests
-import json
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import streamlit as st
-from openpyxl import Workbook
-from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
-from openpyxl.utils.dataframe import dataframe_to_rows
 
 FILE_PATH = "objednavky_lcecko.csv"
 SETTINGS_PATH = "nastaveni_lcecko.json"
 LOGO_PATH = "logo.jpg"
+DIR_OBRAZKY = "obrazky"
 
 # --- BANKOVNÍ ÚDAJE L-CÉČKA ---
 BANK_ACCOUNT = "4610796083"
@@ -87,7 +88,15 @@ st.markdown("""
         margin-bottom: 20px;
     }
     
-    /* STYLY PRO BĚŽÍCÍ TITULKY */
+    /* Zaoblené rohy a jednotná výška fotek produktů (styl Deni Candle) */
+    [data-testid="stImage"] img {
+        border-radius: 10px;
+        max-height: 200px;
+        object-fit: cover;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    
+    /* BĚŽÍCÍ TITULKY */
     .marquee-container {
         width: 100%;
         overflow: hidden;
@@ -114,7 +123,6 @@ st.markdown("""
 
 def odeslat_email_upozorneni(id_obj, jmeno, prijmeni, adresa, program, delka, datum_od, cena, poznamka):
     if not EMAIL_SENDER or not EMAIL_PASSWORD or not EMAIL_RECEIVER:
-        print("E-mailové údaje chybí v konfiguraci.")
         return False
     try:
         msg = MIMEMultipart()
@@ -172,9 +180,9 @@ def nacti_nastaveni():
     }
     if not GITHUB_TOKEN or not GITHUB_REPO:
         if not os.path.exists(SETTINGS_PATH):
-            with open(SETTINGS_PATH, "w") as f:
-                json.dump(vychozi, f)
-        with open(SETTINGS_PATH, "r") as f:
+            with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+                json.dump(vychozi, f, ensure_ascii=False)
+        with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
             return json.load(f), None
 
     try:
@@ -195,9 +203,9 @@ def nacti_nastaveni():
     return vychozi, None
 
 def uloz_nastaveni(nastaveni_dict, sha=None):
-    obsah = json.dumps(nastaveni_dict)
+    obsah = json.dumps(nastaveni_dict, ensure_ascii=False)
     if not GITHUB_TOKEN or not GITHUB_REPO:
-        with open(SETTINGS_PATH, "w") as f:
+        with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
             f.write(obsah)
         return True
 
@@ -294,7 +302,7 @@ def vytvor_profi_excel(df, titulek="Objednávky"):
                     max_length = len(str(cell.value))
             except:
                 pass
-        ws.column_dimensions[col_letter].width = (max_length + 2)
+        ws.column_dimensions[col_letter].width = max(max_length + 2, 12)
         
     ws.auto_filter.ref = ws.dimensions
     
@@ -303,7 +311,6 @@ def vytvor_profi_excel(df, titulek="Objednávky"):
     return output.getvalue()
 
 def detekuj_alergie(text):
-    """Skenuje poznámky a hledá klíčová slova k alergiím."""
     if pd.isna(text):
         return ""
     text_low = str(text).lower()
@@ -314,7 +321,6 @@ def detekuj_alergie(text):
     return ""
 
 def vygeneruj_html_uctenku(id_obj, jmeno, prijmeni, adresa, telefon, program, delka, datum, cena):
-    """Generátor krásné účtenky pro zákazníka."""
     html_obsah = f"""
     <!DOCTYPE html>
     <html lang="cs">
@@ -431,7 +437,6 @@ rezim = st.sidebar.radio("Navigace:", ["🛒 Objednávka pro zákazníka", "🔐
 # 1. ZÁKAZNICKÝ OBJEDNÁVKOVÝ FORMULÁŘ
 # ---------------------------------------------------------
 if rezim == "🛒 Objednávka pro zákazníka":
-    # Inicializace proměnných pro zamezení NameError
     vybrany_program = ""
     delka_trvani = ""
     cena_za_jednotku = 0
@@ -439,7 +444,6 @@ if rezim == "🛒 Objednávka pro zákazníka":
     celkem_ks_catering = 0
     datum_od = (datetime.today() + timedelta(days=2)).date()
     
-    # BEZPEČNÉ VYČIŠTĚNÍ FORMULÁŘE PŘED JEHO VYKRLESLENÍM
     if st.session_state.get("need_clear_form", False):
         for k in ["input_jmeno", "input_prijmeni", "input_telefon", "input_email", "input_ulice", "input_cp", "input_psc", "input_poznamka"]:
             st.session_state[k] = ""
@@ -451,7 +455,6 @@ if rezim == "🛒 Objednávka pro zákazníka":
             st.session_state["cukrovi_vaha"] = 1.0
         st.session_state["need_clear_form"] = False
 
-    # BĚŽÍCÍ TITULKY
     bezici_text = nastaveni_app.get("bezici_text", "")
     if bezici_text.strip():
         st.markdown(f"""
@@ -547,61 +550,61 @@ if rezim == "🛒 Objednávka pro zákazníka":
             if min_ks_catering > 1:
                 st.info(f"💡 Minimální celkový odběr pro catering je **{min_ks_catering} ks/kg** (můžete libovolně kombinovat různé položky).")
             
-            # CENÍK SLANÉHO OBČERSTVENÍ
-            ceny_slane = {
-                "Kanapky": 30,
-                "Obložené chlebíčky": 45,
-                "Bezlepkové chlebíčky": 69,
-                "Obložené vejce": 69,
-                "Obložený máslový croissant (celozrnný)": 85,
-                "Obložené bagety velké (světlá/tmavá)": 189,
-                "Plněná bageta malá": 69,
-                "Mini plněná banketka": 49,
-                "Topinka s vejci a oblohou": 45,
-                "Smaženka": 49,
-                "Mini burger (hovězí / trhané maso)": 85,
-                "Plněná tortila s trhaným masem (klasik/celozrnná)": 95,
-                "Obložený bagel": 89,
-                "Bramborák se slaninou (160g)": 69,
-                "Racio kváskový obložený chléb": 89,
-                "Obložené mísy": 890,
-                "Obložená zeleninová mísa s dipem (kg)": 690,
-                "Mini rautové řízky (kg)": 799,
-                "Mini holandské karbanátky s oblohou (kg)": 690,
-                "Roastbeef (kg)": 1050,
-                "Hovězí tatarák - pravá svíčková (kg)": 1350,
-                "Pomazánky mix (kg)": 385,
-                "Vajíčkový salát se sýrem a rajčaty (kg)": 390,
-                "Caesar salát (kg)": 790,
-                "Šopský salát (kg)": 465,
-                "Těstovinový salát s kuřecím masem (kg)": 490,
-                "Zeleninový salát se sýrem (kg)": 260,
-                "Bramborový salát (kg)": 270
+            # KATALOG SLANÉHO (Položka, Cena, Název fotky ve složce obrazky/)
+            katalog_slane = {
+                "Kanapky": {"cena": 30, "foto": f"{DIR_OBRAZKY}/kanapky.jpg"},
+                "Obložené chlebíčky": {"cena": 45, "foto": f"{DIR_OBRAZKY}/chlebicky.jpg"},
+                "Bezlepkové chlebíčky": {"cena": 69, "foto": f"{DIR_OBRAZKY}/bezlepkove_chlebicky.jpg"},
+                "Obložené vejce": {"cena": 69, "foto": f"{DIR_OBRAZKY}/oblozene_vejce.jpg"},
+                "Obložený máslový croissant (celozrnný)": {"cena": 85, "foto": f"{DIR_OBRAZKY}/croissant.jpg"},
+                "Obložené bagety velké (světlá/tmavá)": {"cena": 189, "foto": f"{DIR_OBRAZKY}/bageta_velka.jpg"},
+                "Plněná bageta malá": {"cena": 69, "foto": f"{DIR_OBRAZKY}/bageta_mala.jpg"},
+                "Mini plněná banketka": {"cena": 49, "foto": f"{DIR_OBRAZKY}/banketka.jpg"},
+                "Topinka s vejci a oblohou": {"cena": 45, "foto": f"{DIR_OBRAZKY}/topinka.jpg"},
+                "Smaženka": {"cena": 49, "foto": f"{DIR_OBRAZKY}/smazenka.jpg"},
+                "Mini burger (hovězí / trhané maso)": {"cena": 85, "foto": f"{DIR_OBRAZKY}/miniburger.jpg"},
+                "Plněná tortila s trhaným masem (klasik/celozrnná)": {"cena": 95, "foto": f"{DIR_OBRAZKY}/tortila.jpg"},
+                "Obložený bagel": {"cena": 89, "foto": f"{DIR_OBRAZKY}/bagel.jpg"},
+                "Bramborák se slaninou (160g)": {"cena": 69, "foto": f"{DIR_OBRAZKY}/bramborak.jpg"},
+                "Racio kváskový obložený chléb": {"cena": 89, "foto": f"{DIR_OBRAZKY}/racio_chleb.jpg"},
+                "Obložené mísy": {"cena": 890, "foto": f"{DIR_OBRAZKY}/oblozene_misy.jpg"},
+                "Obložená zeleninová mísa s dipem (kg)": {"cena": 690, "foto": f"{DIR_OBRAZKY}/zeleninova_misa.jpg"},
+                "Mini rautové řízky (kg)": {"cena": 799, "foto": f"{DIR_OBRAZKY}/rizky.jpg"},
+                "Mini holandské karbanátky s oblohou (kg)": {"cena": 690, "foto": f"{DIR_OBRAZKY}/karbanatky.jpg"},
+                "Roastbeef (kg)": {"cena": 1050, "foto": f"{DIR_OBRAZKY}/roastbeef.jpg"},
+                "Hovězí tatarák - pravá svíčková (kg)": {"cena": 1350, "foto": f"{DIR_OBRAZKY}/tatarak.jpg"},
+                "Pomazánky mix (kg)": {"cena": 385, "foto": f"{DIR_OBRAZKY}/pomazanky.jpg"},
+                "Vajíčkový salát se sýrem a rajčaty (kg)": {"cena": 390, "foto": f"{DIR_OBRAZKY}/vajickovy_salat.jpg"},
+                "Caesar salát (kg)": {"cena": 790, "foto": f"{DIR_OBRAZKY}/caesar_salat.jpg"},
+                "Šopský salát (kg)": {"cena": 465, "foto": f"{DIR_OBRAZKY}/sopsky_salat.jpg"},
+                "Těstovinový salát s kuřecím masem (kg)": {"cena": 490, "foto": f"{DIR_OBRAZKY}/testovinovy_salat.jpg"},
+                "Zeleninový salát se sýrem (kg)": {"cena": 260, "foto": f"{DIR_OBRAZKY}/zeleninovy_salat.jpg"},
+                "Bramborový salát (kg)": {"cena": 270, "foto": f"{DIR_OBRAZKY}/bramborovy_salat.jpg"}
             }
             
-            # CENÍK SLADKÉHO OBČERSTVENÍ
-            ceny_sladke = {
-                "Bábovka celá": 280,
-                "Sladký závin (ks)": 45,
-                "Kynuté koláče": 40,
-                "Strouhaný koláč": 69,
-                "Hraběnčiny řezy": 69,
-                "Koláč s ovocem a drobenkou": 45,
-                "Pavlova": 79,
-                "Špaldová palačinka (marmeláda/čokoláda/tvaroh)": 45,
-                "Vdolečky": 39,
-                "Řecká svačinka s granolou a ovocem": 89,
-                "Maromka pohár": 89,
-                "Makový bezlepkový dort": 89,
-                "Jahodové řezy bezlepek": 89,
-                "Cupcake": 79,
-                "Mini plněné košíčky": 35,
-                "Piškotová roláda": 59,
-                "Bezlepková roláda": 79,
-                "Čokoládový dort": 89,
-                "Lotus pohár": 79,
-                "Jahody se šlehačkou": 69,
-                "Obložená ovocná mísa (kg)": 690
+            # KATALOG SLADKÉHO
+            katalog_sladke = {
+                "Bábovka celá": {"cena": 280, "foto": f"{DIR_OBRAZKY}/babovka.jpg"},
+                "Sladký závin (ks)": {"cena": 45, "foto": f"{DIR_OBRAZKY}/zavin.jpg"},
+                "Kynuté koláče": {"cena": 40, "foto": f"{DIR_OBRAZKY}/kynute_kolace.jpg"},
+                "Strouhaný koláč": {"cena": 69, "foto": f"{DIR_OBRAZKY}/strouhany_kolac.jpg"},
+                "Hraběnčiny řezy": {"cena": 69, "foto": f"{DIR_OBRAZKY}/hrabenciny_rezy.jpg"},
+                "Koláč s ovocem a drobenkou": {"cena": 45, "foto": f"{DIR_OBRAZKY}/ovocny_kolac.jpg"},
+                "Pavlova": {"cena": 79, "foto": f"{DIR_OBRAZKY}/pavlova.jpg"},
+                "Špaldová palačinka (marmeláda/čokoláda/tvaroh)": {"cena": 45, "foto": f"{DIR_OBRAZKY}/palacinka.jpg"},
+                "Vdolečky": {"cena": 39, "foto": f"{DIR_OBRAZKY}/vdolecky.jpg"},
+                "Řecká svačinka s granolou a ovocem": {"cena": 89, "foto": f"{DIR_OBRAZKY}/recka_svacinka.jpg"},
+                "Maromka pohár": {"cena": 89, "foto": f"{DIR_OBRAZKY}/maromka_pohar.jpg"},
+                "Makový bezlepkový dort": {"cena": 89, "foto": f"{DIR_OBRAZKY}/makovy_dort.jpg"},
+                "Jahodové řezy bezlepek": {"cena": 89, "foto": f"{DIR_OBRAZKY}/jahodove_rezy.jpg"},
+                "Cupcake": {"cena": 79, "foto": f"{DIR_OBRAZKY}/cupcake.jpg"},
+                "Mini plněné košíčky": {"cena": 35, "foto": f"{DIR_OBRAZKY}/kosicky.jpg"},
+                "Piškotová roláda": {"cena": 59, "foto": f"{DIR_OBRAZKY}/piskotova_rolada.jpg"},
+                "Bezlepková roláda": {"cena": 79, "foto": f"{DIR_OBRAZKY}/bezlepkova_rolada.jpg"},
+                "Čokoládový dort": {"cena": 89, "foto": f"{DIR_OBRAZKY}/cokoladovy_dort.jpg"},
+                "Lotus pohár": {"cena": 79, "foto": f"{DIR_OBRAZKY}/lotus_pohar.jpg"},
+                "Jahody se šlehačkou": {"cena": 69, "foto": f"{DIR_OBRAZKY}/jahody_slehacka.jpg"},
+                "Obložená ovocná mísa (kg)": {"cena": 690, "foto": f"{DIR_OBRAZKY}/ovocna_misa.jpg"}
             }
             
             vybrane_polozky = []
@@ -611,25 +614,63 @@ if rezim == "🛒 Objednávka pro zákazníka":
             
             with tab_slane:
                 col_s1, col_s2 = st.columns(2)
-                for idx, (polozka, cena) in enumerate(ceny_slane.items()):
+                for idx, (polozka, info) in enumerate(katalog_slane.items()):
                     col = col_s1 if idx % 2 == 0 else col_s2
                     jednotka = "Kč/kg" if "(kg)" in polozka else "Kč/ks"
-                    ks = col.number_input(f"{polozka} ({cena} {jednotka})", min_value=0, max_value=200, value=0, key=f"slane_{idx}")
-                    if ks > 0:
-                        vybrane_polozky.append(f"{ks}x {polozka}")
-                        celkova_cena_catering += ks * cena
-                        celkem_ks_catering += ks
+                    cena = info["cena"]
+                    foto = info["foto"]
+                    
+                    with col:
+                        # 1. Čítač množství (styl Deni Candle)
+                        ks = st.number_input(
+                            f"🥪 {polozka} ({cena} {jednotka})", 
+                            min_value=0, 
+                            max_value=200, 
+                            value=0, 
+                            step=1,
+                            key=f"slane_{idx}"
+                        )
+                        # 2. Fotka přímo pod čítačem
+                        if foto and os.path.exists(foto):
+                            st.image(foto, use_container_width=True)
+                        else:
+                            st.caption("📷 *Foto připravujeme*")
+                            
+                        st.write("") # decentní mezera mezi položkami
+                        
+                        if ks > 0:
+                            vybrane_polozky.append(f"{ks}x {polozka}")
+                            celkova_cena_catering += ks * cena
+                            celkem_ks_catering += ks
                         
             with tab_sladke:
                 col_sl1, col_sl2 = st.columns(2)
-                for idx, (polozka, cena) in enumerate(ceny_sladke.items()):
+                for idx, (polozka, info) in enumerate(katalog_sladke.items()):
                     col = col_sl1 if idx % 2 == 0 else col_sl2
                     jednotka = "Kč/kg" if "(kg)" in polozka else "Kč/ks"
-                    ks = col.number_input(f"{polozka} ({cena} {jednotka})", min_value=0, max_value=200, value=0, key=f"sladke_{idx}")
-                    if ks > 0:
-                        vybrane_polozky.append(f"{ks}x {polozka}")
-                        celkova_cena_catering += ks * cena
-                        celkem_ks_catering += ks
+                    cena = info["cena"]
+                    foto = info["foto"]
+                    
+                    with col:
+                        ks = st.number_input(
+                            f"🍰 {polozka} ({cena} {jednotka})", 
+                            min_value=0, 
+                            max_value=200, 
+                            value=0, 
+                            step=1,
+                            key=f"sladke_{idx}"
+                        )
+                        if foto and os.path.exists(foto):
+                            st.image(foto, use_container_width=True)
+                        else:
+                            st.caption("📷 *Foto připravujeme*")
+                            
+                        st.write("")
+                        
+                        if ks > 0:
+                            vybrane_polozky.append(f"{ks}x {polozka}")
+                            celkova_cena_catering += ks * cena
+                            celkem_ks_catering += ks
             
             vybrany_program = ", ".join(vybrane_polozky) if vybrane_polozky else "Žádná položka nevybrána"
             delka_trvani = "Zakázková výroba"
@@ -641,7 +682,6 @@ if rezim == "🛒 Objednávka pro zákazníka":
                 "Gurmán Snídaně (Vajíčka, Sýry, Uzeniny)"
             ])
             delka_trvani = st.select_slider("Délka:", options=["5 dní", "10 dní", "20 dní"])
-            
             ceník_snidani = {"5 dní": 650, "10 dní": 1200, "20 dní": 2200}
             cena_za_jednotku = ceník_snidani[delka_trvani]
 
@@ -649,13 +689,14 @@ if rezim == "🛒 Objednávka pro zákazníka":
             st.markdown("### 🎄 FIT Cukroví")
             st.write("Mix tradičních druhů ve zdravější verzi (Vanilkové rohlíčky, Mandlové rohlíčky, Pekanové pracny, Košíčky, Linecké, vosí úly...)")
             
+            if os.path.exists(f"{DIR_OBRAZKY}/cukrovi.jpg"):
+                st.image(f"{DIR_OBRAZKY}/cukrovi.jpg", use_container_width=True)
+                
             vaha_kg = st.number_input("Počet kil (kg):", min_value=0.5, max_value=20.0, value=1.0, step=0.5, key="cukrovi_vaha")
-            
             vybrany_program = "FIT Cukroví"
             delka_trvani = f"{vaha_kg} kg"
             cena_za_jednotku = int(1400 * vaha_kg)
 
-        # Výpočet minimálního data doručení (3 dny pro Zakázkovou výrobu, 2 dny pro ostatní)
         min_dny = 3 if kategorie == "Zakázková výroba / Catering" else 2
         min_datum = (datetime.today() + timedelta(days=min_dny)).date()
         
@@ -751,9 +792,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
                             "cena": cena_za_jednotku
                         }
                         
-                        # NASTAVENÍ PŘÍZNAKU PRO BEZPEČNÉ VYČIŠTĚNÍ FORMULÁŘE PŘI PŘÍŠTÍM RERUNU
                         st.session_state["need_clear_form"] = True
-                            
                         st.rerun()
                     else:
                         st.error("❌ Chyba při ukládání objednávky na GitHub. Zkuste to prosím znovu.")
@@ -812,7 +851,6 @@ else:
                 st.markdown("</div>", unsafe_allow_html=True)
 
                 df_filtered = df_orders.copy()
-                
                 df_filtered.insert(1, "⚠️ POZOR", df_filtered["Poznamka_Kuryr"].apply(detekuj_alergie))
                 
                 if search_query:
@@ -881,7 +919,6 @@ else:
                 vybrany_den = st.date_input("Zobrazit souhrn k datu:", value=datetime.today())
                 
                 df_kuchyn = df_orders[df_orders["Datum_Od"] == vybrany_den.strftime("%Y-%m-%d")].copy()
-                
                 st.write(f"**Přehled menu a výroby pro:** {vybrany_den.strftime('%d.%m.%Y')}")
                 
                 if not df_kuchyn.empty:
