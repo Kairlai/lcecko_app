@@ -797,17 +797,17 @@ if rezim == "🛒 Objednávka pro zákazníka":
                     else:
                         st.error("❌ Chyba při ukládání objednávky na GitHub. Zkuste to prosím znovu.")
 
-   # --- VIDEO V DOLNÍ ČÁSTI ZÁKAZNICKÉ STRÁNKY (BEZ SMYČKY) ---
+  # --- VIDEO V DOLNÍ ČÁSTI ZÁKAZNICKÉ STRÁNKY (OPRAVA PROBLIKÁVÁNÍ) ---
     st.divider()
     st.markdown(
         """
-        <div style="max-width: 680px; margin: 20px auto; background: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-top: 5px solid #4A7833; text-align: center;">
+        <div style="max-width: 680px; margin: 20px auto; background: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-top: 5px solid #4A7833; text-align: center; transform: translate3d(0, 0, 0);">
             <h3 style="color: #4A7833; margin-top: 0; margin-bottom: 15px;">🥗 Nahlédněte k nám do kuchyně</h3>
-            <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px;">
+            <div style="position: relative; padding-bottom: 56.25%; height: 0; border-radius: 8px; transform: translate3d(0, 0, 0);">
                 <iframe 
-                    src="https://www.youtube.com/embed/bM2EZaemCtk?autoplay=0=1&controls=1" 
-                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" 
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    src="https://www.youtube.com/embed/bM2EZaemCtk?autoplay=0&controls=1&rel=0" 
+                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; border-radius: 8px;" 
+                    allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                     allowfullscreen>
                 </iframe>
             </div>
