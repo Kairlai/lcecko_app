@@ -482,8 +482,8 @@ if rezim == "🛒 Objednávka pro zákazníka":
                 label="📥 Stáhnout shrnutí objednávky", 
                 data=p["html_uctenka"], 
                 file_name=f"Objednavka_LCecko_{p['id']}.html", 
-                mime="text/html",
-                type="secondary",
+                mime="text/html", 
+                type="secondary", 
                 key="btn_download_success"
             )
             
@@ -627,7 +627,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
                             min_value=0, 
                             max_value=200, 
                             value=0, 
-                            step=1,
+                            step=1, 
                             key=f"slane_{idx}"
                         )
                         # 2. Fotka přímo pod čítačem
@@ -657,7 +657,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
                             min_value=0, 
                             max_value=200, 
                             value=0, 
-                            step=1,
+                            step=1, 
                             key=f"sladke_{idx}"
                         )
                         if foto and os.path.exists(foto):
@@ -795,9 +795,9 @@ if rezim == "🛒 Objednávka pro zákazníka":
                         st.session_state["need_clear_form"] = True
                         st.rerun()
                     else:
-                        
-                    st.error("❌ Chyba při ukládání objednávky na GitHub. Zkuste to prosím znovu.")
-                    # --- VIDEO V DOLNÍ ČÁSTI STRÁNKY ---
+                        st.error("❌ Chyba při ukládání objednávky na GitHub. Zkuste to prosím znovu.")
+
+    # --- VIDEO V DOLNÍ ČÁSTI ZÁKAZNICKÉ STRÁNKY ---
     st.divider()
     col_v1, col_v2, col_v3 = st.columns([1, 2, 1])
     with col_v2:
@@ -948,7 +948,7 @@ else:
                         label="👨‍🍳 Stáhnout běžný výkaz (Excel)", 
                         data=excel_kuchyn, 
                         file_name=f"kuchyn_vyroba_{vybrany_den.strftime('%d_%m')}.xlsx", 
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
                     )
                 else:
                     st.info(f"Na den {vybrany_den.strftime('%d.%m.%Y')} nejsou naplánované žádné objednávky.")
