@@ -802,7 +802,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
     st.markdown(
         """
         <div style="max-width: 680px; margin: 20px auto; background: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-top: 5px solid #4A7833; text-align: center; transform: translate3d(0, 0, 0);">
-            <h3 style="color: #4A7833; margin-top: 0; margin-bottom: 15px;">🥗 Nahlédněte k nám do kuchyně</h3>
+            <h3 style="color: #4A7833; margin-top: 0; margin-bottom: 15px;">🥗 Náš Catering</h3>
             <div style="position: relative; padding-bottom: 56.25%; height: 0; border-radius: 8px; transform: translate3d(0, 0, 0);">
                 <iframe 
                     src="https://www.youtube.com/embed/bM2EZaemCtk?autoplay=0&controls=1&rel=0" 
