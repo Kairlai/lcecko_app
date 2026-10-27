@@ -795,7 +795,14 @@ if rezim == "🛒 Objednávka pro zákazníka":
                         st.session_state["need_clear_form"] = True
                         st.rerun()
                     else:
-                        st.error("❌ Chyba při ukládání objednávky na GitHub. Zkuste to prosím znovu.")
+                        
+                    st.error("❌ Chyba při ukládání objednávky na GitHub. Zkuste to prosím znovu.")
+                    # --- VIDEO V DOLNÍ ČÁSTI STRÁNKY ---
+    st.divider()
+    col_v1, col_v2, col_v3 = st.columns([1, 2, 1])
+    with col_v2:
+        st.subheader("🥗 Nahlédněte k nám do kuchyně")
+        st.video("https://www.youtube.com/watch?v=bM2EZaemCtk")
 
 # ---------------------------------------------------------
 # 2. SPRÁVA PRO MAJITELKU A KUCHYŇ
