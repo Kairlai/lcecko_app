@@ -121,7 +121,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-def odeslat_email_upozorneni(id_obj, jmeno, prijmeni, adresa, program, delka, datum_od, cena, poznamka):
+def odeslat_email_upozorneni(id_obj, jmeno, prijmeni, telefon, email_zakaznika, adresa, program, delka, datum_od, cena, poznamka):
     if not EMAIL_SENDER or not EMAIL_PASSWORD or not EMAIL_RECEIVER:
         return False
     try:
@@ -135,6 +135,8 @@ def odeslat_email_upozorneni(id_obj, jmeno, prijmeni, adresa, program, delka, da
 přes objednávkový formulář L-Céčka právě dorazila nová objednávka!
 
 Zákazník: {jmeno} {prijmeni}
+Telefon: {telefon}
+E-mail: {email_zakaznika}
 Adresa pro kurýra: {adresa}
 Poznámka pro kurýra / alergie: {poznamka if poznamka else '-'}
 
@@ -772,7 +774,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
                     
                     df_aktualni = pd.concat([df_orders, nova_objednavka], ignore_index=True)
                     if uloz_objednavky(df_aktualni, current_sha):
-                        email_uspech = odeslat_email_upozorneni(nove_id, jmeno, prijmeni, adresa_komplet, vybrany_program, delka_trvani, datum_od.strftime("%Y-%m-%d"), cena_za_jednotku, poznamka)
+                        email_uspech = odeslat_email_upozorneni(nove_id, jmeno, prijmeni, telefon, email, adresa_komplet, vybrany_program, delka_trvani, datum_od.strftime("%Y-%m-%d"), cena_za_jednotku, poznamka)
                         
                         html_uctenka = vygeneruj_html_uctenku(
                             nove_id, jmeno, prijmeni, adresa_komplet, telefon, 
@@ -797,7 +799,7 @@ if rezim == "🛒 Objednávka pro zákazníka":
                     else:
                         st.error("❌ Chyba při ukládání objednávky na GitHub. Zkuste to prosím znovu.")
 
-  # --- VIDEO V DOLNÍ ČÁSTI ZÁKAZNICKÉ STRÁNKY (OPRAVA PROBLIKÁVÁNÍ) ---
+    # --- VIDEO V DOLNÍ ČÁSTI ZÁKAZNICKÉ STRÁNKY (OPRAVA PROBLIKÁVÁNÍ) ---
     st.divider()
     st.markdown(
         """
